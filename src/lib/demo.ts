@@ -22,11 +22,17 @@ export const DEMO_CLASS = {
 
 export const DEMO_GYM = {
   name: 'Krav Maga Santista',
+  modality: 'Krav Maga · Defesa Pessoal',
   belt: 'Faixa Azul',
   plan: 'Plano Mensal',
   attendanceMonth: 11,
   nextClass: 'Hoje, 19:00',
   paymentStatus: 'paid' as const,
+  // Address + coordinates power the map + "como chegar" directions. Santos/SP.
+  address: 'Av. Ana Costa, 414 — Gonzaga',
+  city: 'Santos · SP',
+  lat: -23.9665,
+  lng: -46.3289,
 }
 
 /** Next monthly due date for `dueDay`, as a localized DD/MM/YYYY string. */

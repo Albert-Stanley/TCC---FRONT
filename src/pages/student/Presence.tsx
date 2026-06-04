@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, Clock, User, MapPin } from 'lucide-react'
+import { CheckCircle2, Clock, User, MapPin, Navigation } from 'lucide-react'
 import { api, getErrorMessage } from '@/lib/api'
 import { Header } from '@/components/layout/Header'
 import { FormLayout } from '@/components/layout/FormLayout'
@@ -10,7 +10,11 @@ import { Badge } from '@/components/ui/Badge'
 import { InfoNote } from '@/components/ui/InfoNote'
 import { FormError } from '@/components/ui/FormError'
 import { SectionTitle } from '@/components/ui/SectionTitle'
-import { DEMO_CLASS } from '@/lib/demo'
+import { MapView } from '@/components/ui/MapView'
+import { DEMO_CLASS, DEMO_GYM } from '@/lib/demo'
+import { openDirections } from '@/lib/geo'
+
+const GYM_POINT = { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
 
 const today = new Date().toLocaleDateString('pt-BR', {
   weekday: 'long',
@@ -74,35 +78,49 @@ export function Presence() {
 
       <FormLayout
         aside={
-          <Card className="flex flex-col gap-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                  Aula de hoje
+          <div className="flex flex-col gap-4">
+            <Card className="flex flex-col gap-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                    Aula de hoje
+                  </p>
+                  <p className="mt-1 font-display text-lg font-bold capitalize text-content">
+                    {today}
+                  </p>
+                </div>
+                <Badge tone="primary">Ativa</Badge>
+              </div>
+
+              <p className="font-display text-base font-bold uppercase tracking-tight text-content">
+                {DEMO_CLASS.modality}
+              </p>
+
+              <div className="space-y-2.5 border-t border-line pt-4 text-sm">
+                <p className="flex items-center gap-2.5 text-content">
+                  <Clock size={16} className="text-primary" /> {DEMO_CLASS.time}
                 </p>
-                <p className="mt-1 font-display text-lg font-bold capitalize text-content">
-                  {today}
+                <p className="flex items-center gap-2.5 text-content">
+                  <User size={16} className="text-primary" /> {DEMO_CLASS.instructor}
+                </p>
+                <p className="flex items-center gap-2.5 text-content">
+                  <MapPin size={16} className="text-primary" /> {DEMO_CLASS.location}
                 </p>
               </div>
-              <Badge tone="primary">Ativa</Badge>
-            </div>
+            </Card>
 
-            <p className="font-display text-base font-bold uppercase tracking-tight text-content">
-              {DEMO_CLASS.modality}
-            </p>
-
-            <div className="space-y-2.5 border-t border-line pt-4 text-sm">
-              <p className="flex items-center gap-2.5 text-content">
-                <Clock size={16} className="text-primary" /> {DEMO_CLASS.time}
-              </p>
-              <p className="flex items-center gap-2.5 text-content">
-                <User size={16} className="text-primary" /> {DEMO_CLASS.instructor}
-              </p>
-              <p className="flex items-center gap-2.5 text-content">
-                <MapPin size={16} className="text-primary" /> {DEMO_CLASS.location}
-              </p>
+            <div className="flex flex-col gap-3">
+              <MapView
+                point={GYM_POINT}
+                label={DEMO_GYM.name}
+                height={150}
+                onOpen={() => openDirections(GYM_POINT)}
+              />
+              <Button variant="secondary" onClick={() => openDirections(GYM_POINT)}>
+                <Navigation size={17} /> Como chegar
+              </Button>
             </div>
-          </Card>
+          </div>
         }
       >
         <SectionTitle underline>Confirmar presença</SectionTitle>
