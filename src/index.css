@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Theme-aware semantic tokens (RGB triplets for Tailwind's <alpha-value>). */
+  :root {
+    --canvas: 247 244 238; /* warm cream */
+    --surface: 255 255 255;
+    --content: 28 23 19; /* warm near-black */
+    --muted: 120 113 106;
+    --line: 232 226 217;
+    --primary-soft: 251 233 231;
+    --accent-soft: 253 242 222;
+  }
+
+  .dark {
+    --canvas: 20 17 14; /* warm near-black */
+    --surface: 33 29 24;
+    --content: 245 241 234;
+    --muted: 168 162 154;
+    --line: 51 45 38;
+    --primary-soft: 58 22 20;
+    --accent-soft: 56 42 22;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-content antialiased;
+    -webkit-tap-highlight-color: transparent;
+    /* Prevent iOS rubber-band scroll from revealing the page behind the app. */
+    overscroll-behavior-y: none;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Smooth the flip between light and dark. */
+  body,
+  body * {
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  /* Visible keyboard-focus ring for interactive elements (mouse clicks are
+     unaffected via :focus-visible). Inputs keep their own focus ring. */
+  a:focus-visible,
+  button:focus-visible,
+  [role='button']:focus-visible,
+  [role='menuitem']:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid #e10000;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+@layer utilities {
+  /* Respect the notch / status bar on phones; collapses to 0 elsewhere. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Hide the scrollbar for a native, chrome-free app feel (still scrollable). */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

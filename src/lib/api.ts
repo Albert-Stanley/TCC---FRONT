@@ -1,0 +1,69 @@
+import axios from 'axios'
+import { useAuthStore } from '@/store/authStore'
+import { PREVIEW_MODE } from '@/lib/preview'
+import { mockAdapter } from '@/lib/mock'
+
+/**
+ * Central Axios instance for the KravConnect API.
+ * Base URL comes from VITE_API_URL (see .env.example).
+ */
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
+  headers: { 'Content-Type': 'application/json' },
+})
+
+// While previewing without a backend, resolve every request against the
+// in-memory mock instead of the network. Disabled once PREVIEW_MODE is off.
+if (PREVIEW_MODE) {
+  api.defaults.adapter = mockAdapter
+}
+
+// Request interceptor: attach the JWT to every outgoing request.
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().token
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Response interceptor: on 401 the token is invalid/expired -> clear session.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      useAuthStore.getState().logout()
+    }
+    return Promise.reject(error)
+  },
+)
+
+/**
+ * Normalizes a list response into a plain array. Backends vary between
+ * returning a bare array or wrapping it as `{ data: [...] }` / `{ items: [...] }`.
+ */
+export function asList<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (payload && typeof payload === 'object') {
+    const obj = payload as Record<string, unknown>
+    for (const key of ['data', 'items', 'requests', 'students', 'result']) {
+      if (Array.isArray(obj[key])) return obj[key] as T[]
+    }
+  }
+  return []
+}
+
+/** Extracts a human-friendly message from an API/Axios error. */
+export function getErrorMessage(
+  err: unknown,
+  fallback = 'Algo deu errado. Tente novamente.',
+): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as
+      | { message?: string; error?: string }
+      | undefined
+    return data?.message ?? data?.error ?? err.message ?? fallback
+  }
+  if (err instanceof Error) return err.message
+  return fallback
+}
