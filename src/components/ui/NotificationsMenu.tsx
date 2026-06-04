@@ -36,13 +36,13 @@ export function NotificationsMenu({ className = '' }: { className?: string }) {
       const r = el.getBoundingClientRect()
       if (r.width === 0 && r.height === 0) return setOpen(false)
 
-      const width = Math.min(320, window.innerWidth - 24)
-      // Align the panel's right edge with the button, then clamp into the
-      // viewport so it never spills off-screen.
-      const left = Math.max(
-        12,
-        Math.min(r.right - width, window.innerWidth - width - 12),
-      )
+      // Pin the panel's RIGHT edge to the bell and grow leftwards, shrinking the
+      // width if the bell sits close to the left edge. This keeps the panel
+      // tucked under the bell (e.g. inside the sidebar) instead of spilling to
+      // the right over the page content.
+      const maxWidth = Math.min(320, window.innerWidth - 24)
+      const width = Math.min(maxWidth, Math.max(220, r.right - 12))
+      const left = Math.max(12, r.right - width)
       setPos({ top: r.bottom + 8, left, width })
     }
 
