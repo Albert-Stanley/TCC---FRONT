@@ -1,18 +1,34 @@
+# Dependencies
 node_modules
+
+# Build output
 dist
 dist-ssr
 *.local
 
-.env
-.env.local
-.env.*.local
+# Vite / TypeScript caches
+.vite
+*.tsbuildinfo
 
-.DS_Store
+# Test coverage
+coverage
+
+# Environment files — keep secrets out of git.
+# Only .env.example is committed; every real .env is ignored.
+.env
+.env.*
+!.env.example
+
+# Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
+# OS / editor
+.DS_Store
+Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea

@@ -28,6 +28,25 @@ npm run build          # type-checks then bundles into dist/
 npm run preview        # serves the production build locally
 ```
 
+## Homologação (modo preview)
+
+Esta é uma **versão de homologação**: ela roda com **dados mockados**, sem
+backend. O flag `PREVIEW_MODE` em `src/lib/preview.ts` está **`true`**, o que:
+
+- resolve toda chamada `api.*` contra o mock em memória (`src/lib/mock.ts`),
+  incluindo o catálogo da loja em `src/lib/shop.ts`;
+- semeia uma sessão demo e **ignora os guardas de autenticação/RBAC**, para que
+  todas as telas (aluno + professor) sejam navegáveis sem servidor.
+
+Nenhum segredo é necessário ou armazenado no repositório — o `PREVIEW_USER` é
+fictício e o `VITE_API_URL` aponta para `localhost` por padrão.
+
+### Antes de ir para produção
+
+1. Defina `PREVIEW_MODE = false` em `src/lib/preview.ts` (restaura auth + RBAC reais).
+2. Configure `VITE_API_URL` no `.env` apontando para a API real (nunca commite o `.env`).
+3. Garanta que o backend valide o JWT e o RBAC no servidor — o gate do frontend é apenas de UX.
+
 ## Project structure
 
 ```
