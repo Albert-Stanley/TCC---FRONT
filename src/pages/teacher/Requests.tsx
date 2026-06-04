@@ -115,7 +115,7 @@ export function Requests() {
         ) : visible.length === 0 ? (
           <EmptyState icon={Inbox} message="Nenhuma solicitação nesta categoria." />
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid items-start gap-4 lg:grid-cols-2">
             {visible.map((r) => {
             const status = r.status ?? 'pending'
             return (

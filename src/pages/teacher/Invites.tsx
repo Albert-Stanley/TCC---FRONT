@@ -132,7 +132,7 @@ export function Invites() {
             message="Nenhum convite gerado ainda. Gere um link para compartilhar com seus alunos."
           />
         ) : (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid items-start gap-4 lg:grid-cols-2">
             {invites.map((invite) => {
             const url = invite.url ?? inviteUrl(invite.token)
             const used = invite.status === 'used'

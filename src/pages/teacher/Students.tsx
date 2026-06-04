@@ -318,7 +318,7 @@ export function Students() {
             }
           />
         ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid items-start gap-3 lg:grid-cols-2">
             {visible.map((st) => (
               <StudentRow
                 key={st.id_aluno}

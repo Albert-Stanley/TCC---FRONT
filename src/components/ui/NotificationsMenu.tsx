@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Bell, BellRing } from 'lucide-react'
 import { useNotificationStore } from '@/store/notificationStore'
 
@@ -13,7 +13,11 @@ import { useNotificationStore } from '@/store/notificationStore'
 export function NotificationsMenu({ className = '' }: { className?: string }) {
   const items = useNotificationStore((s) => s.items)
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [open, setOpen] = useState(false)
+
+  // Close whenever the route changes (e.g. tapping a notification or a nav link).
+  useEffect(() => setOpen(false), [pathname])
   const btnRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(
