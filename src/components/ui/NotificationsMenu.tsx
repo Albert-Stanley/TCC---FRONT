@@ -21,16 +21,34 @@ export function NotificationsMenu({ className = '' }: { className?: string }) {
   )
 
   useLayoutEffect(() => {
-    if (!open || !btnRef.current) return
-    const r = btnRef.current.getBoundingClientRect()
-    const width = Math.min(320, window.innerWidth - 24)
-    // Align the panel's right edge with the button, then clamp into the viewport
-    // so it never spills off-screen (e.g. when the bell sits in the sidebar).
-    const left = Math.max(
-      12,
-      Math.min(r.right - width, window.innerWidth - width - 12),
-    )
-    setPos({ top: r.bottom + 8, left, width })
+    if (!open) return
+
+    const place = () => {
+      const el = btnRef.current
+      // The bell moves between the sidebar (lg+) and the mobile top bar across
+      // the `lg` breakpoint. If this instance's button is gone/hidden, close so
+      // the panel never floats orphaned in the old spot.
+      if (!el) return setOpen(false)
+      const r = el.getBoundingClientRect()
+      if (r.width === 0 && r.height === 0) return setOpen(false)
+
+      const width = Math.min(320, window.innerWidth - 24)
+      // Align the panel's right edge with the button, then clamp into the
+      // viewport so it never spills off-screen.
+      const left = Math.max(
+        12,
+        Math.min(r.right - width, window.innerWidth - width - 12),
+      )
+      setPos({ top: r.bottom + 8, left, width })
+    }
+
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true) // capture: also any scroll container
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
   }, [open])
 
   useEffect(() => {
