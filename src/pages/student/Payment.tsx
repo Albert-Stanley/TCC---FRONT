@@ -1,7 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ExternalLink, CheckCircle2, CalendarClock } from 'lucide-react'
+import {
+  ExternalLink,
+  CheckCircle2,
+  CalendarClock,
+  Download,
+  Receipt,
+} from 'lucide-react'
 import { api, getErrorMessage } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
 import { Header } from '@/components/layout/Header'
 import { FormLayout } from '@/components/layout/FormLayout'
 import { Card } from '@/components/ui/Card'
@@ -10,8 +17,14 @@ import { Badge } from '@/components/ui/Badge'
 import { InfoNote } from '@/components/ui/InfoNote'
 import { FormError } from '@/components/ui/FormError'
 import { SectionTitle } from '@/components/ui/SectionTitle'
-import { DEMO_BILLING, nextDueDate } from '@/lib/demo'
-import { formatBRL } from '@/lib/format'
+import {
+  DEMO_BILLING,
+  DEMO_GYM,
+  DEMO_PAYMENTS,
+  nextDueDate,
+  type DemoPayment,
+} from '@/lib/demo'
+import { formatBRL, formatDate } from '@/lib/format'
 
 /** Shape we try to read from the Abacate Pay response (best-effort). */
 interface PaymentResponse {
@@ -22,8 +35,33 @@ interface PaymentResponse {
   amount?: number
 }
 
+/** Builds and downloads a plain-text receipt for a paid invoice. */
+function downloadReceipt(p: DemoPayment, gym: string, payer?: string) {
+  const lines = [
+    'COMPROVANTE DE PAGAMENTO',
+    '========================',
+    `Academia:   ${gym}`,
+    payer ? `Aluno:      ${payer}` : '',
+    `Referência: ${p.monthLabel}`,
+    `Valor:      ${formatBRL(p.amountCents)}`,
+    `Pago em:    ${formatDate(p.paidAt)}`,
+    `Forma:      ${DEMO_BILLING.method}`,
+    `Status:     PAGO`,
+    '',
+    'Documento gerado pelo KravConnect.',
+  ].filter(Boolean)
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `comprovante-${p.id}.txt`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export function Payment() {
   const navigate = useNavigate()
+  const payerName = useAuthStore((s) => s.user?.name)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<PaymentResponse | null>(null)
@@ -138,9 +176,36 @@ export function Payment() {
         <Button loading={loading} onClick={handlePay}>
           Pagar {formatBRL(DEMO_BILLING.amountCents)}
         </Button>
-        <Button variant="secondary" onClick={() => navigate('/gyms')}>
-          Cancelar
-        </Button>
+
+        {/* Payment history */}
+        <section className="mt-2 flex flex-col gap-3">
+          <SectionTitle>Histórico de pagamentos</SectionTitle>
+          <div className="flex flex-col gap-2.5">
+            {DEMO_PAYMENTS.map((p) => (
+              <Card key={p.id} className="flex items-center gap-3 py-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                  <Receipt size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-content">
+                    {p.monthLabel}
+                  </p>
+                  <p className="truncate text-xs text-muted">
+                    {formatBRL(p.amountCents)} · pago em {formatDate(p.paidAt)}
+                  </p>
+                </div>
+                <Badge tone="success">Pago</Badge>
+                <button
+                  onClick={() => downloadReceipt(p, DEMO_GYM.name, payerName)}
+                  aria-label={`Baixar comprovante de ${p.monthLabel}`}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-canvas hover:text-primary"
+                >
+                  <Download size={18} />
+                </button>
+              </Card>
+            ))}
+          </div>
+        </section>
       </FormLayout>
     </div>
   )

@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { LogOut, GraduationCap, UserRound, CheckCircle2 } from 'lucide-react'
 import { api, getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { useGymStore } from '@/store/gymStore'
 import { PREVIEW_MODE } from '@/lib/preview'
+import { DEMO_GYM } from '@/lib/demo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Header } from '@/components/layout/Header'
 import { FormLayout } from '@/components/layout/FormLayout'
@@ -13,7 +15,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { FormError } from '@/components/ui/FormError'
-import { maskCep, maskCpf, onlyDigits } from '@/lib/format'
+import { maskCep, maskCpf, maskCnpj, onlyDigits } from '@/lib/format'
 import type { User } from '@/types'
 
 export function Profile() {
@@ -21,6 +23,7 @@ export function Profile() {
   const user = useAuthStore((s) => s.user)
   const setUser = useAuthStore((s) => s.setUser)
   const logout = useAuthStore((s) => s.logout)
+  const gym = useGymStore((s) => s.gym)
 
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
@@ -104,6 +107,36 @@ export function Profile() {
                 </Badge>
               </div>
             </Card>
+
+            {/* Account summary */}
+            {isTeacher ? (
+              <Card className="flex flex-col gap-2.5">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                  Minha academia
+                </p>
+                <SummaryRow label="Academia" value={gym?.name ?? DEMO_GYM.name} />
+                {gym?.cnpj && <SummaryRow label="CNPJ" value={maskCnpj(gym.cnpj)} />}
+                <SummaryRow label="Local" value={gym?.city ?? DEMO_GYM.city} />
+              </Card>
+            ) : (
+              PREVIEW_MODE && (
+                <Card className="flex flex-col gap-2.5">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                    Minha conta
+                  </p>
+                  <SummaryRow label="Faixa" value={DEMO_GYM.belt} />
+                  <SummaryRow label="Plano" value={DEMO_GYM.plan} />
+                  <SummaryRow
+                    label="Presenças no mês"
+                    value={String(DEMO_GYM.attendanceMonth)}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted">Mensalidade</span>
+                    <Badge tone="success">Em dia</Badge>
+                  </div>
+                </Card>
+              )
+            )}
 
             {/* Preview-only role switcher (browse student + teacher flows). */}
             {PREVIEW_MODE && (
@@ -203,6 +236,15 @@ export function Profile() {
           Sair
         </Button>
       </FormLayout>
+    </div>
+  )
+}
+
+function SummaryRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-sm text-muted">{label}</span>
+      <span className="truncate text-sm font-semibold text-content">{value}</span>
     </div>
   )
 }

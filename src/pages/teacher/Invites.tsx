@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Plus, Copy, Trash2, Link2, Check, X } from 'lucide-react'
 import { api, getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
@@ -29,6 +29,11 @@ export function Invites() {
   const [error, setError] = useState<string | null>(null)
   const [justGenerated, setJustGenerated] = useState(false)
   const [copiedId, setCopiedId] = useState<string | number | null>(null)
+
+  const stats = useMemo(() => {
+    const used = invites.filter((i) => i.status === 'used').length
+    return { total: invites.length, active: invites.length - used, used }
+  }, [invites])
 
   async function generate() {
     setGenerating(true)
@@ -91,6 +96,24 @@ export function Invites() {
       />
 
       <div className="flex flex-col gap-4 px-6 py-6">
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Total', value: stats.total, tone: 'text-content' },
+            { label: 'Ativos', value: stats.active, tone: 'text-primary' },
+            { label: 'Usados', value: stats.used, tone: 'text-muted' },
+          ].map((s) => (
+            <Card key={s.label} className="px-3 py-3 text-center">
+              <p className={`font-display text-2xl font-extrabold ${s.tone}`}>
+                {s.value}
+              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                {s.label}
+              </p>
+            </Card>
+          ))}
+        </div>
+
         {justGenerated && (
           <div
             role="status"

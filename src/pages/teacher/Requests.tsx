@@ -91,6 +91,21 @@ export function Requests() {
       />
 
       <div className="flex flex-col gap-4 px-6 py-6">
+        {counts.pending > 0 && (
+          <button
+            onClick={() => setFilter('pending')}
+            className="flex items-center gap-3 rounded-2xl border border-primary/30 bg-primary-soft px-4 py-3 text-left transition-colors hover:bg-primary/15"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+              <Inbox size={18} />
+            </span>
+            <p className="text-sm font-semibold text-primary">
+              {counts.pending} solicitaç{counts.pending > 1 ? 'ões' : 'ão'}{' '}
+              aguardando sua aprovação.
+            </p>
+          </button>
+        )}
+
         {/* Filter chips */}
         <div className="flex gap-2 overflow-x-auto pb-1">
           {FILTERS.map(({ key, label }) => (

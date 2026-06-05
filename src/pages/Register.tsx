@@ -9,6 +9,8 @@ import { Header } from '@/components/layout/Header'
 import { InfoNote } from '@/components/ui/InfoNote'
 import { FormError } from '@/components/ui/FormError'
 import { maskCep, maskCpf, onlyDigits } from '@/lib/format'
+import { lookupCep } from '@/lib/geo'
+import { MapPin } from 'lucide-react'
 import type { AuthResponse, RegistrationPayload } from '@/types'
 
 /** Two-step indicator shown at the top of the registration form. */
@@ -46,8 +48,20 @@ export function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [cpf, setCpf] = useState('')
   const [cep, setCep] = useState('')
+  const [cepCity, setCepCity] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  async function handleCepChange(value: string) {
+    setCep(maskCep(value))
+    const digits = onlyDigits(value)
+    if (digits.length !== 8) {
+      setCepCity(null)
+      return
+    }
+    const info = await lookupCep(digits)
+    setCepCity(info?.city ? `${info.city} · ${info.uf ?? ''}`.trim() : null)
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -156,15 +170,23 @@ export function Register() {
             value={cpf}
             onChange={(e) => setCpf(maskCpf(e.target.value))}
           />
-          <Input
-            name="cep"
-            label="CEP"
-            placeholder="00000-000"
-            inputMode="numeric"
-            required
-            value={cep}
-            onChange={(e) => setCep(maskCep(e.target.value))}
-          />
+          <div>
+            <Input
+              name="cep"
+              label="CEP"
+              placeholder="00000-000"
+              inputMode="numeric"
+              required
+              value={cep}
+              onChange={(e) => handleCepChange(e.target.value)}
+            />
+            {cepCity && (
+              <p className="mt-1.5 flex items-center gap-1.5 px-1 text-xs font-medium text-emerald-600">
+                <MapPin size={13} className="shrink-0" />
+                {cepCity}
+              </p>
+            )}
+          </div>
 
           <InfoNote>
             Usaremos seu CPF e CEP para validar seu cadastro na academia.

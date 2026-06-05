@@ -13,6 +13,21 @@ export const DEMO_BILLING = {
   dueDay: 10,
 }
 
+/** Past invoices for the billing history (no endpoint yet — illustrative). */
+export interface DemoPayment {
+  id: string
+  monthLabel: string
+  amountCents: number
+  paidAt: string
+  status: 'paid'
+}
+
+export const DEMO_PAYMENTS: DemoPayment[] = [
+  { id: '2026-05', monthLabel: 'Maio 2026', amountCents: 14990, paidAt: '2026-05-09', status: 'paid' },
+  { id: '2026-04', monthLabel: 'Abril 2026', amountCents: 14990, paidAt: '2026-04-08', status: 'paid' },
+  { id: '2026-03', monthLabel: 'Março 2026', amountCents: 14990, paidAt: '2026-03-10', status: 'paid' },
+]
+
 export const DEMO_CLASS = {
   modality: 'Krav Maga — Fundamentos',
   time: '19:00 – 20:00',
