@@ -66,6 +66,33 @@ export function openDirections(
   )
 }
 
+/** Max distance from the gym (metres) that still counts as "at the gym". */
+export const CHECKIN_RADIUS_M = 150
+
+/**
+ * Promise wrapper around the Geolocation API. Resolves the current coordinates
+ * or rejects with `Error('unsupported')` / a `GeolocationPositionError`.
+ */
+export function getCurrentPosition(
+  opts: PositionOptions = {
+    enableHighAccuracy: true,
+    timeout: 8000,
+    maximumAge: 30_000,
+  },
+): Promise<LatLng> {
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) {
+      reject(new Error('unsupported'))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      reject,
+      opts,
+    )
+  })
+}
+
 type GeoStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'unsupported'
 
 /**
