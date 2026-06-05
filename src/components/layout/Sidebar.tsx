@@ -55,10 +55,14 @@ export function Sidebar() {
         ]
 
   return (
-    <aside className="sticky top-0 hidden h-[100dvh] w-64 shrink-0 flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
-      <div className="flex items-center justify-between px-2">
-        <Brand size={34} wordmarkClassName="text-lg text-content" />
-        <div className="flex items-center">
+    <aside className="sticky top-0 hidden h-[100dvh] w-80 shrink-0 flex-col overflow-hidden border-r border-line bg-surface px-4 py-6 lg:flex">
+      <div className="flex items-center justify-between gap-1 px-2">
+        <Brand
+          size={30}
+          className="min-w-0"
+          wordmarkClassName="min-w-0 truncate text-base text-content"
+        />
+        <div className="flex shrink-0 items-center">
           <CartButton className="text-muted hover:bg-canvas hover:text-content" />
           <NotificationsMenu className="text-muted hover:bg-canvas hover:text-content" />
         </div>
