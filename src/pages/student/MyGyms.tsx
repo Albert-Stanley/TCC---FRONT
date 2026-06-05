@@ -6,6 +6,7 @@ import {
   Plus,
   ChevronRight,
   Clock,
+  GraduationCap,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
@@ -124,6 +125,12 @@ export function MyGyms() {
               title="Confirmar presença"
               subtitle="Registre sua presença na aula de hoje."
               onClick={() => navigate('/presence')}
+            />
+            <ActionCard
+              icon={GraduationCap}
+              title="Aulas e conteúdos"
+              subtitle="Veja conteúdos e vídeos das aulas."
+              onClick={() => navigate('/aulas')}
             />
             <ActionCard
               icon={CreditCard}

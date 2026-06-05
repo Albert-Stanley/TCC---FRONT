@@ -50,6 +50,25 @@ export interface Gym {
   lng?: number
 }
 
+/**
+ * A class (aula) created by a teacher. The authoritative API has no
+ * "list classes" GET endpoint, so created classes are cached locally to drive
+ * the teacher's manager and the student's content view.
+ */
+export interface GymClass {
+  id: string
+  name: string
+  /** Modality, e.g. "Krav Maga — Fundamentos". */
+  modality?: string
+  /** Schedule line, e.g. "Seg/Qua · 19:00". */
+  schedule?: string
+  /** Lesson notes / content blocks (POST /Gym/Classes/Information). */
+  contents: string[]
+  /** Video URLs (POST /Gym/Classes/Videos). */
+  videos: string[]
+  createdAt: string
+}
+
 /** Status of a generated invite link. */
 export type InviteStatus = 'active' | 'used' | 'expired'
 

@@ -4,6 +4,7 @@ import type { Role, User } from '@/types'
 import { decodeJwt } from '@/lib/jwt'
 import { useGymStore } from '@/store/gymStore'
 import { useInviteStore } from '@/store/inviteStore'
+import { useClassStore } from '@/store/classStore'
 
 /** Claims we attempt to read from the JWT to bootstrap the session. */
 interface JwtClaims {
@@ -55,6 +56,7 @@ export const useAuthStore = create<AuthState>()(
         // Clear cached teacher session data so the next account starts clean.
         useGymStore.getState().setGym(null)
         useInviteStore.setState({ invites: [] })
+        useClassStore.setState({ classes: [] })
       },
       isAuthenticated: () => Boolean(get().token),
       hasRole: (...roles) => {

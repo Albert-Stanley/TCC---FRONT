@@ -10,6 +10,7 @@ import {
   ChevronRight,
   LocateFixed,
   Building2,
+  GraduationCap,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useNotificationStore } from '@/store/notificationStore'
@@ -187,6 +188,12 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
         {/* Quick actions */}
         <section className="flex flex-col gap-3">
           <SectionTitle>Ações rápidas</SectionTitle>
+          <QuickAction
+            icon={GraduationCap}
+            title="Aulas e conteúdos"
+            subtitle="Veja o conteúdo e os vídeos das aulas."
+            onClick={() => navigate('/aulas')}
+          />
           <QuickAction
             icon={CreditCard}
             title="Mensalidade"

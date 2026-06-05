@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useGymStore } from '@/store/gymStore'
 import { useInviteStore } from '@/store/inviteStore'
+import { useClassStore } from '@/store/classStore'
 import { useThemeStore, applyTheme } from '@/store/themeStore'
 import { PREVIEW_MODE, PREVIEW_USER } from '@/lib/preview'
 import { AppLayout } from '@/components/layout/AppLayout'
@@ -16,6 +17,7 @@ import { MyGyms } from '@/pages/student/MyGyms'
 import { InsertInvite } from '@/pages/student/InsertInvite'
 import { Presence } from '@/pages/student/Presence'
 import { Payment } from '@/pages/student/Payment'
+import { StudentClasses } from '@/pages/student/Classes'
 import { CreateGym } from '@/pages/teacher/CreateGym'
 import { Invites } from '@/pages/teacher/Invites'
 import { Requests } from '@/pages/teacher/Requests'
@@ -63,6 +65,40 @@ export function App() {
         invites: [mk('a1b2c3d4-demo-ativo', 'active'), mk('e5f6g7h8-demo-usado', 'used')],
       })
     }
+
+    // Seed a couple of classes so the teacher manager + student view aren't empty.
+    if (useClassStore.getState().classes.length === 0) {
+      const now = new Date().toISOString()
+      useClassStore.setState({
+        classes: [
+          {
+            id: 'demo-fundamentos',
+            name: 'Fundamentos — Faixa Branca',
+            modality: 'Krav Maga',
+            schedule: 'Seg/Qua · 19:00',
+            contents: [
+              'Aquecimento e mobilidade articular (10 min).',
+              'Postura de combate, guarda e deslocamentos.',
+              'Defesa 360° contra ataques circulares.',
+            ],
+            videos: ['https://www.youtube.com/watch?v=jNQXAC9IVRw'],
+            createdAt: now,
+          },
+          {
+            id: 'demo-condicionamento',
+            name: 'Condicionamento & Defesa',
+            modality: 'Krav Maga',
+            schedule: 'Ter/Qui · 20:00',
+            contents: [
+              'Circuito de força e resistência (4 estações).',
+              'Defesa contra estrangulamento frontal.',
+            ],
+            videos: [],
+            createdAt: now,
+          },
+        ],
+      })
+    }
   }, [])
 
   return (
@@ -82,6 +118,7 @@ export function App() {
               <Route path="/invite" element={<InsertInvite />} />
               <Route path="/presence" element={<Presence />} />
               <Route path="/payment" element={<Payment />} />
+              <Route path="/aulas" element={<StudentClasses />} />
               {/* Shared */}
               <Route path="/store" element={<Store />} />
               <Route path="/profile" element={<Profile />} />
