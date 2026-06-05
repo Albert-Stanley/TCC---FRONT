@@ -1,54 +1,51 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Link2, Plus, Check } from 'lucide-react'
+import {
+  Link2,
+  Plus,
+  Check,
+  Users,
+  Navigation,
+  MapPin,
+  ChevronRight,
+  GraduationCap,
+} from 'lucide-react'
 import { api, asList, getErrorMessage } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
 import { useGymStore } from '@/store/gymStore'
 import { useInviteStore } from '@/store/inviteStore'
 import { useNotificationStore } from '@/store/notificationStore'
+import { DEMO_GYM } from '@/lib/demo'
+import { openDirections } from '@/lib/geo'
 import { Brand } from '@/components/ui/Brand'
-import { Hero } from '@/components/ui/Hero'
+import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { NotificationsMenu } from '@/components/ui/NotificationsMenu'
+import { MapView } from '@/components/ui/MapView'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { SectionTitle } from '@/components/ui/SectionTitle'
 import { Skeleton, SkeletonList } from '@/components/ui/Skeleton'
 import { maskCnpj, maskCpf } from '@/lib/format'
 import type { InviteRequest, Student } from '@/types'
 
-function Stat({
-  label,
-  value,
-  badge,
-}: {
-  label: string
-  value: number | string
-  badge?: string
-}) {
-  return (
-    <Card>
-      <p className="text-[11px] font-semibold uppercase leading-tight tracking-wide text-muted">
-        {label}
-      </p>
-      <div className="mt-1.5 flex items-end justify-between">
-        <p className="font-display text-3xl font-extrabold text-content">{value}</p>
-        {badge && <Badge tone="soft">{badge}</Badge>}
-      </div>
-    </Card>
-  )
-}
+const todayLine = new Date().toLocaleDateString('pt-BR', {
+  weekday: 'long',
+  day: '2-digit',
+  month: 'long',
+})
 
-function StatSkeleton() {
-  return (
-    <Card>
-      <Skeleton className="h-3 w-2/3" />
-      <Skeleton className="mt-3 h-8 w-10" />
-    </Card>
-  )
+const GYM_POINT = { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
+
+function titleCase(s: string): string {
+  return s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s
 }
 
 export function TeacherHome() {
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
   const gym = useGymStore((s) => s.gym)
   const invites = useInviteStore((s) => s.invites)
   const setItems = useNotificationStore((s) => s.setItems)
@@ -107,107 +104,109 @@ export function TeacherHome() {
       )
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível aprovar a solicitação.'))
+    } finally {
+      // no-op
     }
   }
 
+  const firstName = titleCase((user?.name ?? 'Professor').split(' ')[0])
+  const gymName = gym?.name ?? DEMO_GYM.name
+
   return (
     <div className="flex flex-col">
-      <Hero
-        topBar={
-          <>
-            <span className="flex items-center gap-2">
-              <Brand size={32} wordmarkClassName="text-lg text-white" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
-                Professor
-              </span>
-            </span>
-            <div className="flex items-center gap-1">
-              <ThemeToggle className="hover:bg-white/10" />
-              <NotificationsMenu className="hover:bg-white/10" />
-            </div>
-          </>
-        }
-      >
-        <Badge tone="primary" className="mt-3">
-          Academia
-        </Badge>
-        <h1 className="mt-3 font-display text-2xl font-extrabold uppercase leading-tight tracking-tight">
-          {gym?.name ?? 'Sua academia'}
-        </h1>
-        {gym?.cnpj && (
-          <p className="mt-1 text-sm text-white/60">CNPJ {maskCnpj(gym.cnpj)}</p>
-        )}
-      </Hero>
+      {/* Mobile top bar (brand + actions); hidden on desktop sidebar. */}
+      <div className="flex h-14 items-center justify-between px-5 pt-safe lg:hidden">
+        <span className="flex items-center gap-2">
+          <Brand size={30} wordmarkClassName="text-base text-content" />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+            Professor
+          </span>
+        </span>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <NotificationsMenu />
+        </div>
+      </div>
 
-      <div className="-mt-4 flex flex-col gap-5 rounded-t-3xl bg-canvas px-6 pb-6 pt-6">
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {loading ? (
-            <>
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
-            </>
-          ) : (
-            <>
-              <Stat label="Convites ativos" value={activeInvites.length} />
-              <Stat
-                label="Solicitações pendentes"
-                value={pending.length}
-                badge={pending.length > 0 ? 'Novo' : undefined}
-              />
-              <Stat
-                label="Alunos cadastrados"
-                value={students.length}
-                badge={undefined}
-              />
-            </>
-          )}
+      <div className="flex flex-col gap-5 px-5 pb-8 pt-2">
+        {/* Greeting */}
+        <div>
+          <p className="text-sm font-medium capitalize text-muted">{todayLine}</p>
+          <h1 className="mt-1 font-display text-[26px] font-extrabold leading-tight tracking-tight text-content">
+            Bem-vindo, {firstName}! 💪
+          </h1>
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
-          {/* Recent invites */}
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-sm font-bold uppercase tracking-tight text-content">
-                Convites recentes
-              </h2>
-              <button
-                onClick={() => navigate('/invites')}
-                className="flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-primary transition-all hover:bg-primary-dark active:scale-95"
-              >
-                <Plus size={14} /> Gerar
-              </button>
-            </div>
-            {activeInvites.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-line bg-surface px-4 py-6 text-center text-sm text-muted">
-                Nenhum convite ativo. Gere um para compartilhar.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {activeInvites.slice(0, 2).map((inv) => (
-                  <Card key={inv.id} className="flex items-center gap-3 py-3">
-                    <Link2 size={20} className="shrink-0 text-content" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-mono text-xs text-content">
-                        {inv.url ?? inv.token}
-                      </p>
-                      <Badge tone="primary" className="mt-1">
-                        Ativo
-                      </Badge>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </section>
+          {/* Featured gym card */}
+          <Card className="relative flex flex-col gap-4 overflow-hidden">
+            <span className="absolute right-0 top-0 rounded-bl-2xl bg-emerald-500 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white">
+              Ativa
+            </span>
 
-          {/* Pending requests preview */}
-          <section>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-sm font-bold uppercase tracking-tight text-content">
-                Solicitações pendentes
-              </h2>
+            <div className="flex items-center gap-3.5 pr-16">
+              <Logo size={56} rounded="rounded-2xl" />
+              <div className="min-w-0">
+                <h2 className="truncate font-display text-lg font-extrabold uppercase tracking-tight text-content">
+                  {gymName}
+                </h2>
+                <p className="truncate text-sm text-muted">
+                  {gym?.cnpj ? `CNPJ ${maskCnpj(gym.cnpj)}` : 'Sua academia'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              <MiniStat label="Alunos" value={students.length} loading={loading} />
+              <MiniStat label="Convites" value={activeInvites.length} loading={loading} />
+              <MiniStat
+                label="Pendentes"
+                value={pending.length}
+                loading={loading}
+                highlight={pending.length > 0}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button onClick={() => navigate('/students')}>
+                <Users size={17} /> Alunos
+              </Button>
+              <Button variant="secondary" onClick={() => navigate('/invites')}>
+                <Plus size={17} /> Convite
+              </Button>
+            </div>
+          </Card>
+
+          {/* Location map */}
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <SectionTitle underline>Onde fica</SectionTitle>
+            </div>
+            <MapView
+              point={GYM_POINT}
+              label={gymName}
+              height={150}
+              onOpen={() => openDirections(GYM_POINT)}
+            />
+            <div className="flex items-start gap-2.5 px-1 text-sm">
+              <MapPin size={16} className="mt-0.5 shrink-0 text-primary" />
+              <p className="text-muted">
+                <span className="font-semibold text-content">{DEMO_GYM.address}</span>
+                <br />
+                {DEMO_GYM.city}
+              </p>
+            </div>
+            <Button variant="secondary" onClick={() => openDirections(GYM_POINT)}>
+              <Navigation size={17} /> Como chegar
+            </Button>
+          </section>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-2">
+          {/* Pending requests */}
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <SectionTitle>Solicitações pendentes</SectionTitle>
               <button
                 onClick={() => navigate('/requests')}
                 className="text-xs font-semibold uppercase tracking-wide text-primary transition-colors hover:text-primary-dark"
@@ -218,9 +217,7 @@ export function TeacherHome() {
             {loading ? (
               <SkeletonList rows={2} />
             ) : pending.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-line bg-surface px-4 py-6 text-center text-sm text-muted">
-                Nenhuma solicitação pendente.
-              </p>
+              <EmptyHint>Nenhuma solicitação pendente.</EmptyHint>
             ) : (
               <div className="flex flex-col gap-2">
                 {pending.slice(0, 3).map((r) => (
@@ -246,10 +243,97 @@ export function TeacherHome() {
               </div>
             )}
           </section>
+
+          {/* Recent invites */}
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <SectionTitle>Convites recentes</SectionTitle>
+              <button
+                onClick={() => navigate('/invites')}
+                className="flex items-center gap-1 rounded-full bg-primary px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-white shadow-primary transition-all hover:bg-primary-dark active:scale-95"
+              >
+                <Plus size={14} /> Gerar
+              </button>
+            </div>
+            {activeInvites.length === 0 ? (
+              <EmptyHint>Nenhum convite ativo. Gere um para compartilhar.</EmptyHint>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {activeInvites.slice(0, 2).map((inv) => (
+                  <Card key={inv.id} className="flex items-center gap-3 py-3">
+                    <Link2 size={20} className="shrink-0 text-content" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-mono text-xs text-content">
+                        {inv.url ?? inv.token}
+                      </p>
+                      <Badge tone="primary" className="mt-1">
+                        Ativo
+                      </Badge>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
+
+        {/* Manage classes shortcut */}
+        <button onClick={() => navigate('/classes')} className="w-full text-left">
+          <Card interactive className="flex items-center gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ink text-white dark:bg-white/10">
+              <GraduationCap size={22} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-display text-[15px] font-bold uppercase tracking-tight text-content">
+                Gerenciar aulas
+              </h3>
+              <p className="text-sm text-muted">Crie aulas, conteúdos e vídeos.</p>
+            </div>
+            <ChevronRight size={20} className="shrink-0 text-neutral-300" />
+          </Card>
+        </button>
 
         {error && <p className="text-center text-xs text-muted">{error}</p>}
       </div>
     </div>
+  )
+}
+
+function MiniStat({
+  label,
+  value,
+  loading,
+  highlight,
+}: {
+  label: string
+  value: number
+  loading: boolean
+  highlight?: boolean
+}) {
+  return (
+    <div className="rounded-2xl bg-canvas px-3 py-2.5 text-center">
+      {loading ? (
+        <Skeleton className="mx-auto h-7 w-8" />
+      ) : (
+        <p
+          className={`font-display text-2xl font-extrabold ${
+            highlight ? 'text-primary' : 'text-content'
+          }`}
+        >
+          {value}
+        </p>
+      )}
+      <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+        {label}
+      </p>
+    </div>
+  )
+}
+
+function EmptyHint({ children }: { children: string }) {
+  return (
+    <p className="rounded-2xl border border-dashed border-line bg-surface px-4 py-6 text-center text-sm text-muted">
+      {children}
+    </p>
   )
 }

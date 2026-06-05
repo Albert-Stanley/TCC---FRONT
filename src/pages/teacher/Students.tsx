@@ -13,12 +13,13 @@ import {
   CalendarCheck,
   CreditCard,
   CalendarDays,
+  Navigation,
 } from 'lucide-react'
 import { api, asList, getErrorMessage } from '@/lib/api'
 import { useGymStore } from '@/store/gymStore'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
-import { Hero } from '@/components/ui/Hero'
+import { Logo } from '@/components/ui/Logo'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -26,7 +27,11 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { maskCpf, maskCnpj, maskCep, formatDate } from '@/lib/format'
+import { DEMO_GYM } from '@/lib/demo'
+import { openDirections } from '@/lib/geo'
 import type { PaymentStatus, Student } from '@/types'
+
+const GYM_POINT = { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
 
 type PayFilter = 'all' | 'paid' | 'due'
 
@@ -234,16 +239,31 @@ export function Students() {
       />
 
       <div className="flex flex-col gap-5 px-6 py-6">
-        {/* Gym hero */}
-        <Hero variant="card">
-          <Badge tone="primary">Academia</Badge>
-          <h2 className="mt-2 font-display text-xl font-extrabold uppercase leading-tight tracking-tight">
-            {gym?.name ?? 'Sua academia'}
-          </h2>
-          {gym?.cnpj && (
-            <p className="text-sm text-white/60">CNPJ {maskCnpj(gym.cnpj)}</p>
-          )}
-        </Hero>
+        {/* Gym header */}
+        <Card className="relative flex flex-col gap-4 overflow-hidden">
+          <span className="absolute right-0 top-0 rounded-bl-2xl bg-emerald-500 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white">
+            Ativa
+          </span>
+          <div className="flex items-center gap-3.5 pr-16">
+            <Logo size={56} rounded="rounded-2xl" />
+            <div className="min-w-0">
+              <h2 className="truncate font-display text-lg font-extrabold uppercase tracking-tight text-content">
+                {gym?.name ?? 'Sua academia'}
+              </h2>
+              <p className="truncate text-sm text-muted">
+                {gym?.cnpj ? `CNPJ ${maskCnpj(gym.cnpj)}` : DEMO_GYM.city}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => openDirections(GYM_POINT)}
+            className="flex items-center gap-2 rounded-2xl bg-canvas px-4 py-3 text-left text-sm font-semibold text-content transition-colors hover:bg-primary-soft hover:text-primary"
+          >
+            <MapPin size={16} className="shrink-0 text-primary" />
+            <span className="min-w-0 flex-1 truncate">{DEMO_GYM.address}</span>
+            <Navigation size={16} className="ml-auto shrink-0" />
+          </button>
+        </Card>
 
         {/* Summary stats */}
         <div className="grid grid-cols-3 gap-3">
