@@ -93,6 +93,99 @@ export function getCurrentPosition(
   })
 }
 
+/** Address fields resolved from a Brazilian CEP (ViaCEP). */
+export interface CepInfo {
+  cep: string
+  street?: string
+  district?: string
+  city?: string
+  uf?: string
+}
+
+/** Looks up a Brazilian postal code via ViaCEP. Returns null if not found. */
+export async function lookupCep(cep: string): Promise<CepInfo | null> {
+  const digits = cep.replace(/\D/g, '')
+  if (digits.length !== 8) return null
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
+    if (!res.ok) return null
+    const d = await res.json()
+    if (d?.erro) return null
+    return {
+      cep: digits,
+      street: d.logradouro || undefined,
+      district: d.bairro || undefined,
+      city: d.localidade || undefined,
+      uf: d.uf || undefined,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function fetchNominatim(params: Record<string, string>): Promise<LatLng | null> {
+  const qs = new URLSearchParams({ format: 'json', limit: '1', ...params })
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?${qs.toString()}`,
+      { headers: { Accept: 'application/json' } },
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    const hit = Array.isArray(data) ? data[0] : null
+    if (!hit) return null
+    const lat = parseFloat(hit.lat)
+    const lng = parseFloat(hit.lon)
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return null
+    return { lat, lng }
+  } catch {
+    return null
+  }
+}
+
+/** Structured address parts for geocoding (more reliable than free-form). */
+export interface AddressParts {
+  street?: string
+  number?: string
+  district?: string
+  city?: string
+  uf?: string
+  cep?: string
+}
+
+/**
+ * Geocodes an address to coordinates via OpenStreetMap Nominatim. Tries a
+ * structured query first (street/city/postcode), then falls back to free-form.
+ * Returns null when nothing matches or the request fails.
+ */
+export async function geocodeAddress(
+  query: string | AddressParts,
+): Promise<LatLng | null> {
+  if (typeof query === 'string') {
+    const q = query.trim()
+    return q ? fetchNominatim({ q }) : null
+  }
+
+  const { street, number, district, city, uf, cep } = query
+  const streetLine = [number, street].filter(Boolean).join(' ')
+
+  // 1) Structured query — Nominatim resolves these far better than free text.
+  if (streetLine || city) {
+    const structured = await fetchNominatim({
+      ...(streetLine ? { street: streetLine } : {}),
+      ...(city ? { city } : {}),
+      ...(uf ? { state: uf } : {}),
+      ...(cep ? { postalcode: cep } : {}),
+      country: 'Brazil',
+    })
+    if (structured) return structured
+  }
+
+  // 2) Free-form fallback.
+  const free = [streetLine, district, city, uf, 'Brasil'].filter(Boolean).join(', ')
+  return free ? fetchNominatim({ q: free }) : null
+}
+
 type GeoStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'unsupported'
 
 /**

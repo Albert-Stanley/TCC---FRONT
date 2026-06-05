@@ -37,8 +37,6 @@ const todayLine = new Date().toLocaleDateString('pt-BR', {
   month: 'long',
 })
 
-const GYM_POINT = { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
-
 function titleCase(s: string): string {
   return s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : s
 }
@@ -111,6 +109,12 @@ export function TeacherHome() {
 
   const firstName = titleCase((user?.name ?? 'Professor').split(' ')[0])
   const gymName = gym?.name ?? DEMO_GYM.name
+  const gymPoint =
+    gym?.lat != null && gym?.lng != null
+      ? { lat: gym.lat, lng: gym.lng }
+      : { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
+  const gymAddress = gym?.address ?? DEMO_GYM.address
+  const gymCity = gym?.city ?? DEMO_GYM.city
 
   return (
     <div className="flex flex-col">
@@ -183,20 +187,20 @@ export function TeacherHome() {
               <SectionTitle underline>Onde fica</SectionTitle>
             </div>
             <MapView
-              point={GYM_POINT}
+              point={gymPoint}
               label={gymName}
               height={150}
-              onOpen={() => openDirections(GYM_POINT)}
+              onOpen={() => openDirections(gymPoint)}
             />
             <div className="flex items-start gap-2.5 px-1 text-sm">
               <MapPin size={16} className="mt-0.5 shrink-0 text-primary" />
               <p className="text-muted">
-                <span className="font-semibold text-content">{DEMO_GYM.address}</span>
+                <span className="font-semibold text-content">{gymAddress}</span>
                 <br />
-                {DEMO_GYM.city}
+                {gymCity}
               </p>
             </div>
-            <Button variant="secondary" onClick={() => openDirections(GYM_POINT)}>
+            <Button variant="secondary" onClick={() => openDirections(gymPoint)}>
               <Navigation size={17} /> Como chegar
             </Button>
           </section>

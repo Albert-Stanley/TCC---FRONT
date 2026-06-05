@@ -29,10 +29,11 @@ export const DEMO_GYM = {
   nextClass: 'Hoje, 19:00',
   paymentStatus: 'paid' as const,
   // Address + coordinates power the map + "como chegar" directions. Santos/SP.
-  address: 'Av. Ana Costa, 414 — Gonzaga',
+  address: 'Av. Affonso Penna, 511 — sala 21, Estuário',
   city: 'Santos · SP',
-  lat: -23.9665,
-  lng: -46.3289,
+  cep: '11020-001',
+  lat: -23.969748,
+  lng: -46.304044,
 }
 
 /** Next monthly due date for `dueDay`, as a localized DD/MM/YYYY string. */

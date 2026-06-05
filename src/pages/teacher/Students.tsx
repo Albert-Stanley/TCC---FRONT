@@ -31,8 +31,6 @@ import { DEMO_GYM } from '@/lib/demo'
 import { openDirections } from '@/lib/geo'
 import type { PaymentStatus, Student } from '@/types'
 
-const GYM_POINT = { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
-
 type PayFilter = 'all' | 'paid' | 'due'
 
 const beltDot = (belt?: string): string => {
@@ -216,6 +214,12 @@ export function Students() {
     }
   }
 
+  const gymPoint =
+    gym?.lat != null && gym?.lng != null
+      ? { lat: gym.lat, lng: gym.lng }
+      : { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
+  const gymAddress = gym?.address ?? DEMO_GYM.address
+
   const FILTERS: { key: PayFilter; label: string; count: number }[] = [
     { key: 'all', label: 'Todos', count: stats.total },
     { key: 'paid', label: 'Em dia', count: stats.paid },
@@ -251,16 +255,16 @@ export function Students() {
                 {gym?.name ?? 'Sua academia'}
               </h2>
               <p className="truncate text-sm text-muted">
-                {gym?.cnpj ? `CNPJ ${maskCnpj(gym.cnpj)}` : DEMO_GYM.city}
+                {gym?.cnpj ? `CNPJ ${maskCnpj(gym.cnpj)}` : gym?.city ?? DEMO_GYM.city}
               </p>
             </div>
           </div>
           <button
-            onClick={() => openDirections(GYM_POINT)}
+            onClick={() => openDirections(gymPoint)}
             className="flex items-center gap-2 rounded-2xl bg-canvas px-4 py-3 text-left text-sm font-semibold text-content transition-colors hover:bg-primary-soft hover:text-primary"
           >
             <MapPin size={16} className="shrink-0 text-primary" />
-            <span className="min-w-0 flex-1 truncate">{DEMO_GYM.address}</span>
+            <span className="min-w-0 flex-1 truncate">{gymAddress}</span>
             <Navigation size={16} className="ml-auto shrink-0" />
           </button>
         </Card>

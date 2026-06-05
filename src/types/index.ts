@@ -40,6 +40,14 @@ export interface Gym {
   name?: string
   cnpj?: string
   teacherName?: string
+  /** Full street address, when provided at creation. */
+  address?: string
+  /** City line, e.g. "Santos · SP". */
+  city?: string
+  cep?: string
+  /** Geocoded coordinates for the map + check-in geofence. */
+  lat?: number
+  lng?: number
 }
 
 /** Status of a generated invite link. */
