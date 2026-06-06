@@ -1,22 +1,28 @@
 import { useMemo, useState } from 'react'
-import { Search, ShoppingBag, Truck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Search, ShoppingBag, Truck, Settings } from 'lucide-react'
+import { useAuthStore } from '@/store/authStore'
+import { useProductsStore } from '@/store/productsStore'
 import { Header } from '@/components/layout/Header'
 import { Hero } from '@/components/ui/Hero'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CartButton } from '@/components/shop/CartButton'
 import { ProductCard } from '@/components/shop/ProductCard'
-import { CATEGORIES, PRODUCTS } from '@/lib/shop'
+import { CATEGORIES } from '@/lib/shop'
 import { formatBRL } from '@/lib/format'
 import { FREE_SHIPPING_FROM } from '@/lib/shop'
 
 export function Store() {
+  const navigate = useNavigate()
+  const isTeacher = useAuthStore((s) => s.user?.role === 'teacher')
+  const allProducts = useProductsStore((s) => s.products)
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Todos')
   const [query, setQuery] = useState('')
 
   const products = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return PRODUCTS.filter((p) => {
+    return allProducts.filter((p) => {
       const matchesCategory = category === 'Todos' || p.category === category
       const matchesQuery =
         !q ||
@@ -24,7 +30,7 @@ export function Store() {
         p.category.toLowerCase().includes(q)
       return matchesCategory && matchesQuery
     })
-  }, [category, query])
+  }, [category, query, allProducts])
 
   return (
     <div className="flex flex-col">
@@ -32,7 +38,20 @@ export function Store() {
         title="Loja"
         subtitle="Equipamentos e vestuário de Krav Maga."
         back={false}
-        right={<CartButton className="hover:bg-white/10 lg:hover:bg-content/10" />}
+        right={
+          <div className="flex items-center gap-1">
+            {isTeacher && (
+              <button
+                onClick={() => navigate('/store/manage')}
+                aria-label="Gerenciar loja"
+                className="flex h-10 w-10 items-center justify-center rounded-full transition-colors hover:bg-white/10 lg:hover:bg-content/10"
+              >
+                <Settings size={20} />
+              </button>
+            )}
+            <CartButton className="hover:bg-white/10 lg:hover:bg-content/10" />
+          </div>
+        }
       />
 
       <div className="flex flex-col gap-5 px-6 py-6">

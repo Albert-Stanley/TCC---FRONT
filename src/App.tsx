@@ -24,6 +24,7 @@ import { Requests } from '@/pages/teacher/Requests'
 import { Students } from '@/pages/teacher/Students'
 import { Classes } from '@/pages/teacher/Classes'
 import { Store } from '@/pages/shop/Store'
+import { ManageProducts } from '@/pages/shop/ManageProducts'
 import { ProductDetail } from '@/pages/shop/ProductDetail'
 import { Cart } from '@/pages/shop/Cart'
 import { Checkout } from '@/pages/shop/Checkout'
@@ -130,6 +131,7 @@ export function App() {
                 <Route path="/students" element={<Students />} />
                 <Route path="/invites" element={<Invites />} />
                 <Route path="/requests" element={<Requests />} />
+                <Route path="/store/manage" element={<ManageProducts />} />
               </Route>
               {/* Full-screen teacher flow (no bottom nav) */}
               <Route path="/classes" element={<Classes />} />

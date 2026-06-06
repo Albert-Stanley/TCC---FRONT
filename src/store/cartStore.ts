@@ -1,11 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import {
-  PRODUCTS,
-  FREE_SHIPPING_FROM,
-  SHIPPING_FEE,
-  type Product,
-} from '@/lib/shop'
+import { FREE_SHIPPING_FROM, SHIPPING_FEE, type Product } from '@/lib/shop'
+import { useProductsStore } from '@/store/productsStore'
 
 export interface CartItem {
   id: string
@@ -66,9 +62,10 @@ export interface CartLine {
 
 /** Resolves cart items to their products and computes order totals. */
 export function buildCart(items: CartItem[]) {
+  const products = useProductsStore.getState().products
   const lines: CartLine[] = []
   for (const i of items) {
-    const product = PRODUCTS.find((p) => p.id === i.id)
+    const product = products.find((p) => p.id === i.id)
     if (!product) continue
     lines.push({
       product,

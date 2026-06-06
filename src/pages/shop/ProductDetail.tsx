@@ -18,7 +18,7 @@ import { Stars } from '@/components/shop/Stars'
 import { QuantityStepper } from '@/components/shop/QuantityStepper'
 import { CartButton } from '@/components/shop/CartButton'
 import { useCartStore } from '@/store/cartStore'
-import { getProduct } from '@/lib/shop'
+import { useProductsStore } from '@/store/productsStore'
 import { formatBRL } from '@/lib/format'
 
 const PERKS = [
@@ -31,7 +31,9 @@ export function ProductDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const add = useCartStore((s) => s.add)
-  const product = id ? getProduct(id) : undefined
+  const product = useProductsStore((s) =>
+    id ? s.products.find((p) => p.id === id) : undefined,
+  )
 
   const [size, setSize] = useState<string | undefined>(product?.sizes?.[0])
   const [qty, setQty] = useState(1)
