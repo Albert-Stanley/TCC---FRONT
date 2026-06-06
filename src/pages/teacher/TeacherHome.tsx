@@ -10,10 +10,13 @@ import {
   ChevronRight,
   GraduationCap,
 } from 'lucide-react'
-import { api, asList, getErrorMessage } from '@/lib/api'
+import { getErrorMessage } from '@/lib/api'
+import { loadRoster, approveRequest } from '@/lib/roster'
 import { useAuthStore } from '@/store/authStore'
 import { useGymStore } from '@/store/gymStore'
 import { useInviteStore } from '@/store/inviteStore'
+import { useRequestsStore } from '@/store/requestsStore'
+import { useStudentsStore } from '@/store/studentsStore'
 import { useNotificationStore } from '@/store/notificationStore'
 import { DEMO_GYM } from '@/lib/demo'
 import { openDirections } from '@/lib/geo'
@@ -29,7 +32,6 @@ import { Button } from '@/components/ui/Button'
 import { SectionTitle } from '@/components/ui/SectionTitle'
 import { Skeleton, SkeletonList } from '@/components/ui/Skeleton'
 import { maskCnpj, maskCpf } from '@/lib/format'
-import type { InviteRequest, Student } from '@/types'
 
 const todayLine = new Date().toLocaleDateString('pt-BR', {
   weekday: 'long',
@@ -48,32 +50,21 @@ export function TeacherHome() {
   const invites = useInviteStore((s) => s.invites)
   const setItems = useNotificationStore((s) => s.setItems)
 
-  const [requests, setRequests] = useState<InviteRequest[]>([])
-  const [students, setStudents] = useState<Student[]>([])
+  const requests = useRequestsStore((s) => s.requests)
+  const students = useStudentsStore((s) => s.students)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
-    ;(async () => {
-      try {
-        const [reqRes, stuRes] = await Promise.allSettled([
-          api.get('/Gym/Invite/Requests'),
-          api.get('/Gym/Students/Select'),
-        ])
-        if (!active) return
-        if (reqRes.status === 'fulfilled')
-          setRequests(asList<InviteRequest>(reqRes.value.data))
-        if (stuRes.status === 'fulfilled')
-          setStudents(asList<Student>(stuRes.value.data))
-        if (reqRes.status === 'rejected' && stuRes.status === 'rejected')
-          setError(getErrorMessage(reqRes.reason, 'Não foi possível carregar os dados.'))
-      } catch (err) {
-        if (active) setError(getErrorMessage(err))
-      } finally {
+    loadRoster()
+      .catch((err) => {
+        if (active)
+          setError(getErrorMessage(err, 'Não foi possível carregar os dados.'))
+      })
+      .finally(() => {
         if (active) setLoading(false)
-      }
-    })()
+      })
     return () => {
       active = false
     }
@@ -95,15 +86,11 @@ export function TeacherHome() {
   }, [requests, setItems]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function approve(id: string | number) {
+    setError(null)
     try {
-      await api.post('/Gym/Invite/Approvation', { id_aluno: id })
-      setRequests((rs) =>
-        rs.map((r) => (r.id_aluno === id ? { ...r, status: 'approved' } : r)),
-      )
+      await approveRequest(id)
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível aprovar a solicitação.'))
-    } finally {
-      // no-op
     }
   }
 

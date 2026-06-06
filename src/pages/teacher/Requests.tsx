@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, X, FileText, MapPin, Inbox } from 'lucide-react'
-import { api, asList, getErrorMessage } from '@/lib/api'
+import { getErrorMessage } from '@/lib/api'
+import { loadRoster, approveRequest } from '@/lib/roster'
+import { useRequestsStore } from '@/store/requestsStore'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
@@ -9,7 +11,6 @@ import { SkeletonList } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { maskCpf, maskCep, formatDate } from '@/lib/format'
-import type { InviteRequest } from '@/types'
 
 type Status = 'pending' | 'approved' | 'refused'
 type Filter = 'all' | Status
@@ -22,7 +23,8 @@ const FILTERS: { key: Filter; label: string }[] = [
 ]
 
 export function Requests() {
-  const [requests, setRequests] = useState<InviteRequest[]>([])
+  const requests = useRequestsStore((s) => s.requests)
+  const setStatus = useRequestsStore((s) => s.setStatus)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
@@ -30,20 +32,16 @@ export function Requests() {
 
   useEffect(() => {
     let active = true
-    ;(async () => {
-      try {
-        const { data } = await api.get('/Gym/Invite/Requests')
-        const list = asList<InviteRequest>(data).map((r) => ({
-          ...r,
-          status: r.status ?? 'pending',
-        }))
-        if (active) setRequests(list)
-      } catch (err) {
-        if (active) setError(getErrorMessage(err, 'Não foi possível carregar as solicitações.'))
-      } finally {
+    loadRoster()
+      .catch((err) => {
+        if (active)
+          setError(
+            getErrorMessage(err, 'Não foi possível carregar as solicitações.'),
+          )
+      })
+      .finally(() => {
         if (active) setLoading(false)
-      }
-    })()
+      })
     return () => {
       active = false
     }
@@ -63,10 +61,7 @@ export function Requests() {
     setBusyId(id)
     setError(null)
     try {
-      await api.post('/Gym/Invite/Approvation', { id_aluno: id })
-      setRequests((rs) =>
-        rs.map((r) => (r.id_aluno === id ? { ...r, status: 'approved' } : r)),
-      )
+      await approveRequest(id)
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível aprovar a solicitação.'))
     } finally {
@@ -76,9 +71,7 @@ export function Requests() {
 
   // No reject endpoint in the authoritative map — refusal is tracked locally.
   function refuse(id: string | number) {
-    setRequests((rs) =>
-      rs.map((r) => (r.id_aluno === id ? { ...r, status: 'refused' } : r)),
-    )
+    setStatus(id, 'refused')
   }
 
   return (

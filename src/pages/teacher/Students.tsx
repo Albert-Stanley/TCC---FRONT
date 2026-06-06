@@ -15,8 +15,10 @@ import {
   CalendarDays,
   Navigation,
 } from 'lucide-react'
-import { api, asList, getErrorMessage } from '@/lib/api'
+import { api, getErrorMessage } from '@/lib/api'
+import { loadRoster } from '@/lib/roster'
 import { useGymStore } from '@/store/gymStore'
+import { useStudentsStore } from '@/store/studentsStore'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Logo } from '@/components/ui/Logo'
@@ -150,7 +152,8 @@ function StudentRow({
 export function Students() {
   const navigate = useNavigate()
   const gym = useGymStore((s) => s.gym)
-  const [students, setStudents] = useState<Student[]>([])
+  const students = useStudentsStore((s) => s.students)
+  const removeStudent = useStudentsStore((s) => s.removeStudent)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | number | null>(null)
@@ -160,16 +163,14 @@ export function Students() {
 
   useEffect(() => {
     let active = true
-    ;(async () => {
-      try {
-        const { data } = await api.get('/Gym/Students/Select')
-        if (active) setStudents(asList<Student>(data))
-      } catch (err) {
-        if (active) setError(getErrorMessage(err, 'Não foi possível carregar os alunos.'))
-      } finally {
+    loadRoster()
+      .catch((err) => {
+        if (active)
+          setError(getErrorMessage(err, 'Não foi possível carregar os alunos.'))
+      })
+      .finally(() => {
         if (active) setLoading(false)
-      }
-    })()
+      })
     return () => {
       active = false
     }
@@ -206,7 +207,7 @@ export function Students() {
     setError(null)
     try {
       await api.post('/Gym/Students/Remove', { id_aluno: id })
-      setStudents((s) => s.filter((st) => st.id_aluno !== id))
+      removeStudent(id)
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível remover o aluno.'))
     } finally {
