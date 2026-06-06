@@ -82,7 +82,7 @@ export async function mockAdapter(
     const token = crypto.randomUUID()
     return R({
       token,
-      url: `${origin()}/invite?=${token}`,
+      url: `${origin()}/invite?token=${token}`,
       expiration: daysAgo(-7), // expires in 7 days
     })
   }

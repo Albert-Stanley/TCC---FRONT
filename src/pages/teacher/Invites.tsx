@@ -16,7 +16,7 @@ import type { Invite } from '@/types'
 function inviteUrl(token: string): string {
   const origin =
     typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
-  return `${origin}/invite?=${token}`
+  return `${origin}/invite?token=${token}`
 }
 
 export function Invites() {
@@ -160,42 +160,52 @@ export function Invites() {
             const url = invite.url ?? inviteUrl(invite.token)
             const used = invite.status === 'used'
             return (
-              <Card key={invite.id} className="flex flex-col gap-3">
-                <div className="flex items-start gap-3">
-                  <Link2 size={22} className="mt-0.5 shrink-0 text-content" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-sm text-content">{url}</p>
-                    <p className="text-xs text-muted">
+              <Card key={invite.id} className="flex min-w-0 flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
+                    <Link2 size={18} className="shrink-0 text-content" />
+                    <span className="truncate">
                       Criado em {formatDate(invite.createdAt) || '—'}
-                    </p>
+                    </span>
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
                   <Badge tone={used ? 'neutral' : 'primary'}>
                     {used ? 'Usado' : 'Ativo'}
                   </Badge>
-                  <div className="flex items-center gap-1">
-                    {!used && (
-                      <button
-                        onClick={() => copy(invite)}
-                        aria-label="Copiar link"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted active:bg-canvas active:text-primary"
-                      >
-                        {copiedId === invite.id ? (
-                          <Check size={18} className="text-primary" />
-                        ) : (
-                          <Copy size={18} />
-                        )}
-                      </button>
+                </div>
+
+                {/* Tap-to-copy link: the URL truncates but the copy affordance
+                    stays pinned (shrink-0), so it never overflows the frame. */}
+                <button
+                  type="button"
+                  onClick={() => copy(invite)}
+                  disabled={used}
+                  aria-label="Copiar link do convite"
+                  className="group flex items-center gap-3 rounded-xl border border-line bg-canvas px-3.5 py-3 text-left transition-colors hover:border-primary/40 active:scale-[0.99] disabled:opacity-60"
+                >
+                  <span className="min-w-0 flex-1 truncate font-mono text-sm text-content">
+                    {url}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary">
+                    {copiedId === invite.id ? (
+                      <>
+                        <Check size={16} /> Copiado
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={16} /> Copiar
+                      </>
                     )}
-                    <button
-                      onClick={() => removeInvite(invite.id)}
-                      aria-label="Remover convite"
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted active:bg-canvas active:text-primary"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                  </span>
+                </button>
+
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => removeInvite(invite.id)}
+                    aria-label="Remover convite"
+                    className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold uppercase tracking-wide text-muted transition-colors hover:text-primary active:bg-canvas"
+                  >
+                    <Trash2 size={16} /> Remover
+                  </button>
                 </div>
               </Card>
             )
