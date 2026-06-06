@@ -7,10 +7,13 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FormError } from '@/components/ui/FormError'
 import { ProductThumb } from '@/components/shop/ProductThumb'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore, buildCart } from '@/store/cartStore'
+import { placeOrder } from '@/lib/shopApi'
 import { formatBRL, maskCep } from '@/lib/format'
+import type { Order } from '@/lib/shop'
 
 type Method = 'pix' | 'card'
 
@@ -23,11 +26,15 @@ export function Checkout() {
   const { lines, subtotalCents, shippingCents, totalCents } = buildCart(items)
 
   const [name, setName] = useState(user?.name ?? '')
+  const [email, setEmail] = useState(user?.email ?? '')
   const [cep, setCep] = useState(maskCep(user?.cep ?? ''))
   const [address, setAddress] = useState('')
   const [method, setMethod] = useState<Method>('pix')
   const [processing, setProcessing] = useState(false)
-  const [order, setOrder] = useState<{ id: string; total: number } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [order, setOrder] = useState<
+    { id: string; total: number; email: string } | null
+  >(null)
 
   // Confirmation screen.
   if (order) {
@@ -43,8 +50,8 @@ export function Checkout() {
           </h1>
           <p className="mt-2 text-sm text-muted">
             Pedido <span className="font-semibold text-content">{order.id}</span> no
-            valor de {formatBRL(order.total)}. Você receberá os detalhes de
-            entrega por e-mail.
+            valor de {formatBRL(order.total)}. Enviamos a confirmação para{' '}
+            <span className="font-semibold text-content">{order.email}</span>.
           </p>
           <div className="mt-8 flex w-full flex-col gap-3">
             <Button onClick={() => navigate('/store')}>Voltar à loja</Button>
@@ -75,13 +82,37 @@ export function Checkout() {
   async function handlePay(e: FormEvent) {
     e.preventDefault()
     setProcessing(true)
-    // Simulate the Abacate Pay round-trip (no products endpoint in the API map).
-    await new Promise((r) => setTimeout(r, 1100))
-    clear()
-    setOrder({
+    setError(null)
+    const newOrder: Order = {
       id: `#KC${Math.floor(1000 + Math.random() * 9000)}`,
-      total: totalCents,
-    })
+      createdAt: new Date().toISOString(),
+      customerName: name,
+      email,
+      address,
+      method,
+      items: lines.map((l) => ({
+        productId: l.product.id,
+        name: l.product.name,
+        qty: l.qty,
+        size: l.size,
+        priceCents: l.product.priceCents,
+      })),
+      subtotalCents,
+      shippingCents,
+      totalCents,
+      status: 'paid',
+    }
+    try {
+      // Simulate the Abacate Pay round-trip, then record the order + email it.
+      await new Promise((r) => setTimeout(r, 1100))
+      await placeOrder(newOrder)
+      clear()
+      setOrder({ id: newOrder.id, total: totalCents, email })
+    } catch {
+      setError('Não foi possível concluir o pagamento. Tente novamente.')
+    } finally {
+      setProcessing(false)
+    }
   }
 
   const methods: { key: Method; label: string; desc: string; icon: typeof QrCode }[] = [
@@ -108,6 +139,15 @@ export function Checkout() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+              />
+              <Input
+                name="email"
+                type="email"
+                label="E-mail"
+                placeholder="voce@email.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
               <Input
                 name="cep"
@@ -210,6 +250,8 @@ export function Checkout() {
               <Badge tone="soft" className="self-start">
                 Pagamento seguro · Abacate Pay
               </Badge>
+
+              {error && <FormError>{error}</FormError>}
 
               <Button type="submit" loading={processing}>
                 Pagar {formatBRL(totalCents)}

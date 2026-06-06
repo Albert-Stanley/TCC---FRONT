@@ -248,3 +248,27 @@ export function getProduct(id: string): Product | undefined {
 /** Free shipping threshold and flat fee (cents). */
 export const FREE_SHIPPING_FROM = 19900
 export const SHIPPING_FEE = 1990
+
+/** A single line of a placed order (snapshot of the product at purchase time). */
+export interface OrderItem {
+  productId: string
+  name: string
+  qty: number
+  size?: string
+  priceCents: number
+}
+
+/** A placed order. Persisted locally today; mirrors a future POST /Shop/Orders. */
+export interface Order {
+  id: string
+  createdAt: string
+  customerName: string
+  email: string
+  address: string
+  method: 'pix' | 'card'
+  items: OrderItem[]
+  subtotalCents: number
+  shippingCents: number
+  totalCents: number
+  status: 'paid' | 'pending'
+}

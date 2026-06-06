@@ -1,5 +1,7 @@
 import { useProductsStore } from '@/store/productsStore'
-import type { Product } from '@/lib/shop'
+import { useOrderStore } from '@/store/orderStore'
+import { sendOrderConfirmation } from '@/lib/mailer'
+import type { Order, Product } from '@/lib/shop'
 
 /**
  * Shop data layer — the single seam between the UI and the catalog source.
@@ -31,4 +33,19 @@ export async function saveProduct(product: Product): Promise<Product> {
 export async function deleteProduct(id: string): Promise<void> {
   // BACKEND: await api.delete(`/Shop/Products/${id}`)
   useProductsStore.getState().removeProduct(id)
+}
+
+/**
+ * Places an order: records it and triggers the confirmation email.
+ *
+ * MOCK today (records locally + simulated email). With a backend, the order
+ * endpoint should both persist the order and send the email server-side:
+ *   // const { data } = await api.post('/Shop/Orders', order)
+ *   // useOrderStore.getState().addOrder(data); return data
+ * Email failure must not fail the purchase, so it is awaited best-effort.
+ */
+export async function placeOrder(order: Order): Promise<Order> {
+  useOrderStore.getState().addOrder(order)
+  await sendOrderConfirmation(order).catch(() => {})
+  return order
 }
