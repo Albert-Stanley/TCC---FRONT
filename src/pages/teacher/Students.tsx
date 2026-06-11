@@ -12,6 +12,8 @@ import {
   Navigation,
   Award,
   Clock,
+  LocateFixed,
+  Pencil,
 } from 'lucide-react'
 import { api, asList, getErrorMessage } from '@/lib/api'
 import { loadRoster } from '@/lib/roster'
@@ -19,6 +21,8 @@ import { useGymStore } from '@/store/gymStore'
 import { useStudentsStore } from '@/store/studentsStore'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import { MapView } from '@/components/ui/MapView'
 import { Logo } from '@/components/ui/Logo'
 import { Avatar } from '@/components/ui/Avatar'
 import { SkeletonList } from '@/components/ui/Skeleton'
@@ -27,7 +31,13 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { maskCpf, maskCnpj, formatDate } from '@/lib/format'
 import { DEMO_GYM } from '@/lib/demo'
-import { openDirections, useGymLocation } from '@/lib/geo'
+import {
+  openDirections,
+  useGymLocation,
+  getCurrentPosition,
+  geocodeAddress,
+  type LatLng,
+} from '@/lib/geo'
 import type { Student } from '@/types'
 
 const BELTS = ['Branca', 'Amarela', 'Laranja', 'Verde', 'Azul', 'Marrom', 'Preta']
@@ -232,6 +242,7 @@ function StudentRow({
 export function Students() {
   const navigate = useNavigate()
   const gym = useGymStore((s) => s.gym)
+  const setGym = useGymStore((s) => s.setGym)
   const students = useStudentsStore((s) => s.students)
   const removeStudent = useStudentsStore((s) => s.removeStudent)
   const upsertStudent = useStudentsStore((s) => s.upsertStudent)
@@ -338,13 +349,21 @@ export function Students() {
 
   // Authoritative location from GET /Gyms/Geolocation (registered via
   // PUT /Gyms/Location); falls back to the locally cached gym, then demo.
+  // `savedPoint` reflects an update made in this session via the panel below.
   const registeredPoint = useGymLocation()
+  const [savedPoint, setSavedPoint] = useState<LatLng | null>(null)
   const gymPoint =
+    savedPoint ??
     registeredPoint ??
     (gym?.lat != null && gym?.lng != null
       ? { lat: gym.lat, lng: gym.lng }
       : { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng })
   const gymAddress = gym?.address ?? DEMO_GYM.address
+
+  function handleLocationSaved(point: LatLng) {
+    setSavedPoint(point)
+    if (gym) setGym({ ...gym, lat: point.lat, lng: point.lng })
+  }
 
   return (
     <div className="flex flex-col">
@@ -388,6 +407,11 @@ export function Students() {
             <Navigation size={16} className="ml-auto shrink-0" />
           </button>
         </Card>
+
+        <UpdateLocationPanel
+          gymName={gym?.name ?? 'Sua academia'}
+          onSaved={handleLocationSaved}
+        />
 
         {/* Summary stats */}
         <div className="grid grid-cols-2 gap-3">
@@ -471,5 +495,161 @@ export function Students() {
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Inline panel to (re)register the gym's location via PUT /Gyms/Location.
+ * The teacher picks a point — current GPS position or a geocoded address —
+ * previews the pin on the map and then saves it to the backend.
+ */
+function UpdateLocationPanel({
+  gymName,
+  onSaved,
+}: {
+  gymName: string
+  onSaved: (point: LatLng) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [point, setPoint] = useState<LatLng | null>(null)
+  const [busy, setBusy] = useState<'gps' | 'search' | 'save' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  async function useGps() {
+    setError(null)
+    setBusy('gps')
+    try {
+      setPoint(await getCurrentPosition())
+    } catch {
+      setError(
+        'Não foi possível obter sua posição. Verifique a permissão de localização do navegador.',
+      )
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function search() {
+    if (!query.trim()) return
+    setError(null)
+    setBusy('search')
+    const hit = await geocodeAddress(query)
+    setBusy(null)
+    if (hit) setPoint(hit)
+    else setError('Endereço não encontrado. Tente incluir número, cidade e UF.')
+  }
+
+  async function save() {
+    if (!point) return
+    setError(null)
+    setBusy('save')
+    try {
+      await api.put('/Gyms/Location', {
+        latitude: point.lat,
+        longitude: point.lng,
+      })
+      onSaved(point)
+      setSaved(true)
+      setOpen(false)
+      setPoint(null)
+      setQuery('')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Não foi possível salvar a localização.'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="flex flex-col gap-2">
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setOpen(true)
+            setSaved(false)
+            setError(null)
+          }}
+        >
+          <Pencil size={16} /> Atualizar localização
+        </Button>
+        {saved && (
+          <p className="px-1 text-xs font-semibold text-emerald-600">
+            Localização da academia atualizada!
+          </p>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="flex flex-col gap-4">
+      <p className="font-display text-sm font-bold uppercase tracking-tight text-content">
+        Atualizar localização
+      </p>
+
+      <Button
+        type="button"
+        variant="secondary"
+        loading={busy === 'gps'}
+        onClick={useGps}
+      >
+        <LocateFixed size={17} /> Usar minha posição atual
+      </Button>
+
+      <Input
+        name="address"
+        label="Ou busque pelo endereço"
+        placeholder="Rua, número, cidade — ou CEP"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            void search()
+          }
+        }}
+      />
+      <Button
+        type="button"
+        variant="secondary"
+        loading={busy === 'search'}
+        onClick={search}
+      >
+        <Search size={16} /> Buscar no mapa
+      </Button>
+
+      {point && (
+        <div className="flex flex-col gap-2">
+          <MapView point={point} label={gymName} height={150} />
+          <p className="flex items-start gap-2 px-1 text-xs text-muted">
+            <MapPin size={14} className="mt-0.5 shrink-0 text-primary" />
+            Confirme se o pino está no local correto. Ele será usado no mapa e
+            no check-in por GPS dos alunos.
+          </p>
+        </div>
+      )}
+
+      {error && <FormError>{error}</FormError>}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Button loading={busy === 'save'} disabled={!point} onClick={save}>
+          Salvar
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setOpen(false)
+            setPoint(null)
+            setQuery('')
+            setError(null)
+          }}
+        >
+          Cancelar
+        </Button>
+      </div>
+    </Card>
   )
 }
