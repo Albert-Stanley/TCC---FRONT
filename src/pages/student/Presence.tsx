@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   Clock,
   GraduationCap,
-  MapPin,
   Navigation,
   LocateFixed,
   AlertTriangle,
