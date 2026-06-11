@@ -8,7 +8,7 @@ import { mockAdapter } from '@/lib/mock'
  * Base URL comes from VITE_API_URL (see .env.example).
  */
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000',
+  baseURL: import.meta.env.VITE_API_URL ?? 'https://api-krav-maga-app.onrender.com',
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -22,7 +22,7 @@ if (PREVIEW_MODE) {
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+    config.headers.Authorization = token
   }
   return config
 })
@@ -59,10 +59,14 @@ export function getErrorMessage(
   fallback = 'Algo deu errado. Tente novamente.',
 ): string {
   if (axios.isAxiosError(err)) {
-    const data = err.response?.data as
-      | { message?: string; error?: string }
-      | undefined
-    return data?.message ?? data?.error ?? err.message ?? fallback
+    const data = err.response?.data
+    // The backend returns errors as a bare JSON string, e.g. "CNPJ invalido".
+    if (typeof data === 'string' && data.trim()) return data
+    if (data && typeof data === 'object') {
+      const obj = data as { message?: string; error?: string }
+      return obj.message ?? obj.error ?? err.message ?? fallback
+    }
+    return err.message ?? fallback
   }
   if (err instanceof Error) return err.message
   return fallback

@@ -11,6 +11,8 @@ export interface User {
   cpf?: string
   cep?: string
   role: Role
+  /** Graduação / faixa do aluno (vinda de GET /Users/Me). */
+  faixa?: string
 }
 
 /** Response returned by POST /Auth */

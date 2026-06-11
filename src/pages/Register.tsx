@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, MapPin } from 'lucide-react'
 import { api, getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { fetchProfile } from '@/lib/auth'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Header } from '@/components/layout/Header'
@@ -10,11 +11,10 @@ import { InfoNote } from '@/components/ui/InfoNote'
 import { FormError } from '@/components/ui/FormError'
 import { maskCep, maskCpf, onlyDigits } from '@/lib/format'
 import { lookupCep } from '@/lib/geo'
-import { MapPin } from 'lucide-react'
-import type { AuthResponse, RegistrationPayload } from '@/types'
 
 /** Two-step indicator shown at the top of the registration form. */
-function Stepper() {
+function Stepper({ current }: { current: 1 | 2 }) {
+  const step2 = current === 2
   return (
     <div className="mb-8 flex items-center gap-3">
       <div className="flex items-center gap-2">
@@ -27,10 +27,20 @@ function Stepper() {
       </div>
       <span className="h-1 flex-1 rounded-full bg-gradient-to-r from-primary to-line" />
       <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface text-xs font-bold text-muted">
+        <span
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
+            step2
+              ? 'bg-primary text-white shadow-primary'
+              : 'border border-line bg-surface text-muted'
+          }`}
+        >
           2
         </span>
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+        <span
+          className={`text-xs font-semibold uppercase tracking-wide ${
+            step2 ? 'text-content' : 'text-muted'
+          }`}
+        >
           Confirmação
         </span>
       </div>
@@ -41,7 +51,9 @@ function Stepper() {
 export function Register() {
   const navigate = useNavigate()
   const setSession = useAuthStore((s) => s.setSession)
+  const setUser = useAuthStore((s) => s.setUser)
 
+  const [step, setStep] = useState<1 | 2>(1)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -49,6 +61,7 @@ export function Register() {
   const [cpf, setCpf] = useState('')
   const [cep, setCep] = useState('')
   const [cepCity, setCepCity] = useState<string | null>(null)
+  const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -63,6 +76,8 @@ export function Register() {
     setCepCity(info?.city ? `${info.city} · ${info.uf ?? ''}`.trim() : null)
   }
 
+  // Step 1: send the registration. The backend e-mails a 6-digit code and does
+  // NOT create the account yet — that happens after confirmation.
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
@@ -78,27 +93,40 @@ export function Register() {
 
     setLoading(true)
     try {
-      const payload: RegistrationPayload = {
-        name,
+      await api.post('/Users/Registration', {
         email,
-        password,
+        senha: password,
         cpf: onlyDigits(cpf),
         cep: onlyDigits(cep),
-      }
-      const { data } = await api.post<AuthResponse>(
-        '/users/registration',
-        payload,
-      )
+      })
+      setStep(2)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Não foi possível concluir o cadastro.'))
+    } finally {
+      setLoading(false)
+    }
+  }
 
-      // If the backend already returns a token, log the user straight in.
-      if (data?.token) {
-        setSession(data.token, data.user ?? null)
+  // Step 2: confirm the code, then log straight in with the credentials used.
+  async function handleConfirm(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    setLoading(true)
+    try {
+      await api.post('/Users/Registration/Confirm', { codigo_auth: code })
+      const { data: token } = await api.post<string>('/Users/Auth', {
+        email,
+        senha: password,
+      })
+      if (token && typeof token === 'string') {
+        setSession(token)
+        setUser(await fetchProfile())
         navigate('/home', { replace: true })
       } else {
         navigate('/login', { replace: true })
       }
     } catch (err) {
-      setError(getErrorMessage(err, 'Não foi possível concluir o cadastro.'))
+      setError(getErrorMessage(err, 'Código inválido ou expirado.'))
     } finally {
       setLoading(false)
     }
@@ -111,93 +139,131 @@ export function Register() {
       <div className="flex flex-1 flex-col px-6 py-8">
         <header className="mb-7">
           <h1 className="font-display text-2xl font-extrabold uppercase tracking-tight text-content">
-            Crie sua conta
+            {step === 1 ? 'Crie sua conta' : 'Confirme seu e-mail'}
           </h1>
           <p className="mt-1.5 text-sm text-muted">
-            Preencha seus dados para começar.
+            {step === 1
+              ? 'Preencha seus dados para começar.'
+              : 'Enviamos um código de 6 dígitos para o seu e-mail.'}
           </p>
         </header>
 
-        <Stepper />
+        <Stepper current={step} />
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <Input
-            name="name"
-            label="Nome completo"
-            placeholder="Seu nome"
-            autoComplete="name"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <Input
-            name="email"
-            type="email"
-            label="E-mail"
-            placeholder="seu@email.com"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <Input
-            name="password"
-            type={showPassword ? 'text' : 'password'}
-            label="Senha"
-            placeholder="••••••••"
-            autoComplete="new-password"
-            minLength={6}
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            rightSlot={
-              <button
-                type="button"
-                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                onClick={() => setShowPassword((v) => !v)}
-                className="flex items-center"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            }
-          />
-          <Input
-            name="cpf"
-            label="CPF"
-            placeholder="000.000.000-00"
-            inputMode="numeric"
-            required
-            value={cpf}
-            onChange={(e) => setCpf(maskCpf(e.target.value))}
-          />
-          <div>
+        {step === 1 ? (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <Input
-              name="cep"
-              label="CEP"
-              placeholder="00000-000"
+              name="name"
+              label="Nome completo"
+              placeholder="Seu nome"
+              autoComplete="name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <Input
+              name="email"
+              type="email"
+              label="E-mail"
+              placeholder="seu@email.com"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Input
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              label="Senha"
+              placeholder="••••••••"
+              autoComplete="new-password"
+              minLength={6}
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              rightSlot={
+                <button
+                  type="button"
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="flex items-center"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              }
+            />
+            <Input
+              name="cpf"
+              label="CPF"
+              placeholder="000.000.000-00"
               inputMode="numeric"
               required
-              value={cep}
-              onChange={(e) => handleCepChange(e.target.value)}
+              value={cpf}
+              onChange={(e) => setCpf(maskCpf(e.target.value))}
             />
-            {cepCity && (
-              <p className="mt-1.5 flex items-center gap-1.5 px-1 text-xs font-medium text-emerald-600">
-                <MapPin size={13} className="shrink-0" />
-                {cepCity}
-              </p>
-            )}
-          </div>
+            <div>
+              <Input
+                name="cep"
+                label="CEP"
+                placeholder="00000-000"
+                inputMode="numeric"
+                required
+                value={cep}
+                onChange={(e) => handleCepChange(e.target.value)}
+              />
+              {cepCity && (
+                <p className="mt-1.5 flex items-center gap-1.5 px-1 text-xs font-medium text-emerald-600">
+                  <MapPin size={13} className="shrink-0" />
+                  {cepCity}
+                </p>
+              )}
+            </div>
 
-          <InfoNote>
-            Usaremos seu CPF e CEP para validar seu cadastro na academia.
-          </InfoNote>
+            <InfoNote>
+              Usaremos seu CPF e CEP para validar seu cadastro na academia.
+            </InfoNote>
 
-          {error && <FormError>{error}</FormError>}
+            {error && <FormError>{error}</FormError>}
 
-          <Button type="submit" loading={loading} className="mt-1">
-            Continuar
-          </Button>
-        </form>
+            <Button type="submit" loading={loading} className="mt-1">
+              Continuar
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={handleConfirm} className="flex flex-col gap-5">
+            <Input
+              name="code"
+              label="Código de confirmação"
+              placeholder="000000"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              value={code}
+              onChange={(e) => setCode(onlyDigits(e.target.value))}
+            />
+
+            <InfoNote>
+              O código foi enviado para <strong>{email}</strong>. Verifique
+              também a caixa de spam.
+            </InfoNote>
+
+            {error && <FormError>{error}</FormError>}
+
+            <Button type="submit" loading={loading} className="mt-1">
+              Confirmar e entrar
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null)
+                setStep(1)
+              }}
+              className="text-center text-sm font-medium text-muted"
+            >
+              Voltar e corrigir dados
+            </button>
+          </form>
+        )}
 
         <p className="mt-auto pt-8 text-center text-sm text-muted">
           Já tem conta?{' '}

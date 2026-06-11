@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Plus, Copy, Trash2, Link2, Check, X } from 'lucide-react'
-import { api, getErrorMessage } from '@/lib/api'
+import { api, asList, getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { useInviteStore } from '@/store/inviteStore'
 import { Header } from '@/components/layout/Header'
@@ -22,7 +22,6 @@ function inviteUrl(token: string): string {
 export function Invites() {
   const userName = useAuthStore((s) => s.user?.name)
   const invites = useInviteStore((s) => s.invites)
-  const addInvite = useInviteStore((s) => s.addInvite)
   const removeInvite = useInviteStore((s) => s.removeInvite)
 
   const [generating, setGenerating] = useState(false)
@@ -35,30 +34,50 @@ export function Invites() {
     return { total: invites.length, active: invites.length - used, used }
   }, [invites])
 
+  // Load existing invites (GET /Gyms/Invites/List → [{id_convite, link}]).
+  async function loadInvites() {
+    try {
+      const { data } = await api.get('/Gyms/Invites/List')
+      const list = asList<{ id_convite: string; link: string }>(data).map(
+        (c): Invite => ({
+          id: c.id_convite,
+          token: c.id_convite,
+          url: c.link,
+          status: 'active',
+        }),
+      )
+      useInviteStore.setState({ invites: list })
+    } catch (err) {
+      setError(getErrorMessage(err, 'Não foi possível carregar os convites.'))
+    }
+  }
+
+  useEffect(() => {
+    void loadInvites()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   async function generate() {
     setGenerating(true)
     setError(null)
     try {
-      const { data } = await api.post<Record<string, unknown>>(
-        '/Gym/Invite/Generate',
-      )
-      const token = String(
-        data?.token ?? data?.uuid ?? data?.id ?? crypto.randomUUID(),
-      )
-      const invite: Invite = {
-        id: token,
-        token,
-        url: (data?.url as string) ?? inviteUrl(token),
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        expiresAt: (data?.expiration as string) ?? (data?.expiresAt as string),
-      }
-      addInvite(invite)
+      await api.post('/Gyms/Invites/Creation')
+      await loadInvites()
       setJustGenerated(true)
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível gerar o convite.'))
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function remove(id: string | number) {
+    setError(null)
+    try {
+      await api.delete(`/Gyms/Invites/${encodeURIComponent(String(id))}`)
+      removeInvite(id)
+    } catch (err) {
+      setError(getErrorMessage(err, 'Não foi possível remover o convite.'))
     }
   }
 
@@ -200,7 +219,7 @@ export function Invites() {
 
                 <div className="flex justify-end">
                   <button
-                    onClick={() => removeInvite(invite.id)}
+                    onClick={() => remove(invite.id)}
                     aria-label="Remover convite"
                     className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold uppercase tracking-wide text-muted transition-colors hover:text-primary active:bg-canvas"
                   >

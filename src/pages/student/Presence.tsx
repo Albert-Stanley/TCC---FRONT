@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2,
   Clock,
-  User,
+  GraduationCap,
   MapPin,
   Navigation,
   LocateFixed,
   AlertTriangle,
   ShieldCheck,
 } from 'lucide-react'
-import { api, getErrorMessage } from '@/lib/api'
+import { api, asList, getErrorMessage } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
 import { Header } from '@/components/layout/Header'
 import { FormLayout } from '@/components/layout/FormLayout'
 import { Card } from '@/components/ui/Card'
@@ -20,8 +21,9 @@ import { InfoNote } from '@/components/ui/InfoNote'
 import { FormError } from '@/components/ui/FormError'
 import { SectionTitle } from '@/components/ui/SectionTitle'
 import { MapView } from '@/components/ui/MapView'
-import { PREVIEW_MODE } from '@/lib/preview'
-import { DEMO_CLASS, DEMO_GYM } from '@/lib/demo'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { DEMO_GYM } from '@/lib/demo'
+import { formatTime } from '@/lib/format'
 import {
   openDirections,
   getCurrentPosition,
@@ -31,13 +33,20 @@ import {
   type LatLng,
 } from '@/lib/geo'
 
-const GYM_POINT = { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
-
 const today = new Date().toLocaleDateString('pt-BR', {
   weekday: 'long',
   day: '2-digit',
   month: 'long',
 })
+
+/** A class returned by GET /Gyms/Classes/Day. */
+interface Aula {
+  id_aula: string
+  conteudo?: string
+  data_aula?: string
+  faixa?: string
+  id_instrutor?: string
+}
 
 /** Geofence verification states for the GPS check-in. */
 type GeoState =
@@ -49,29 +58,60 @@ type GeoState =
   | { status: 'unsupported' }
 
 /**
- * Confirm attendance for the current class. The check-in is geofenced: the
+ * Confirm attendance for a class of the day. The check-in is geofenced: the
  * athlete's GPS position must be within {@link CHECKIN_RADIUS_M} of the gym
- * before POST /Student/Presence is allowed — this prevents remote check-ins.
+ * (GET /Gyms/Geolocation) before POST /Student/Presence is allowed. The backend
+ * additionally enforces that the class belongs to the athlete's belt.
  */
 export function Presence() {
   const navigate = useNavigate()
+  const userFaixa = useAuthStore((s) => s.user?.faixa)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const [geo, setGeo] = useState<GeoState>({ status: 'checking' })
 
+  const [gymPoint, setGymPoint] = useState<LatLng | null>(null)
+  const [aulas, setAulas] = useState<Aula[]>([])
+  const [selectedAula, setSelectedAula] = useState<string>('')
+  const [coords, setCoords] = useState<LatLng | null>(null)
+
+  // Load gym location (geofence anchor) + today's classes.
+  useEffect(() => {
+    api
+      .get('/Gyms/Geolocation')
+      .then(({ data }) => {
+        const lat = (data as { latitude?: number })?.latitude
+        const lng = (data as { longitude?: number })?.longitude
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          setGymPoint({ lat, lng })
+        }
+      })
+      .catch(() => {})
+
+    api
+      .get('/Gyms/Classes/Day')
+      .then(({ data }) => {
+        const list = asList<Aula>(data)
+        setAulas(list)
+        const mine =
+          list.find((a) => !userFaixa || a.faixa === userFaixa) ?? list[0]
+        if (mine) setSelectedAula(mine.id_aula)
+      })
+      .catch(() => {})
+  }, [userFaixa])
+
   const verifyLocation = useCallback(async () => {
     setGeo({ status: 'checking' })
     try {
-      let coords: LatLng
-      if (PREVIEW_MODE) {
-        // Demo has no real backend and the device isn't in Santos — simulate the
-        // athlete standing at the gym (~40 m away) so the happy path is visible.
-        coords = { lat: DEMO_GYM.lat + 0.0003, lng: DEMO_GYM.lng + 0.0002 }
-      } else {
-        coords = await getCurrentPosition()
+      const pos = await getCurrentPosition()
+      setCoords(pos)
+      if (!gymPoint) {
+        setGeo({ status: 'error' })
+        return
       }
-      const distanceM = haversineMeters(coords, GYM_POINT)
+      const distanceM = haversineMeters(pos, gymPoint)
       setGeo({
         status: distanceM <= CHECKIN_RADIUS_M ? 'inside' : 'outside',
         distanceM,
@@ -85,31 +125,42 @@ export function Presence() {
         setGeo({ status: 'error' })
       }
     }
-  }, [])
+  }, [gymPoint])
 
-  // Verify location as soon as the screen opens.
+  // Verify location once the gym anchor is known.
   useEffect(() => {
-    verifyLocation()
-  }, [verifyLocation])
+    if (gymPoint) verifyLocation()
+  }, [gymPoint, verifyLocation])
 
   async function handleConfirm() {
-    if (geo.status !== 'inside') return
+    if (geo.status !== 'inside' || !coords) return
+    if (!selectedAula) {
+      setError('Nenhuma aula disponível hoje para a sua graduação.')
+      return
+    }
     setError(null)
     setLoading(true)
     try {
-      await api.post('/Student/Presence')
+      await api.post('/Student/Presence', {
+        id_aula: selectedAula,
+        latitude: coords.lat,
+        longitude: coords.lng,
+      })
       setDone(true)
     } catch (err) {
       setError(
         getErrorMessage(
           err,
-          'Não foi possível confirmar a presença. Verifique se há uma aula ativa.',
+          'Não foi possível confirmar a presença. Verifique se há uma aula ativa para a sua graduação.',
         ),
       )
     } finally {
       setLoading(false)
     }
   }
+
+  const point = gymPoint ?? { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
+  const selected = aulas.find((a) => a.id_aula === selectedAula)
 
   if (done) {
     return (
@@ -123,7 +174,8 @@ export function Presence() {
             Presença confirmada!
           </h1>
           <p className="mt-2 text-sm text-muted">
-            Sua presença em {DEMO_CLASS.modality} foi registrada na academia.
+            Sua presença em {selected?.conteudo ?? 'aula'} foi registrada na
+            academia.
           </p>
           <div className="mt-8 w-full">
             <Button onClick={() => navigate('/gyms')}>Concluir</Button>
@@ -144,35 +196,57 @@ export function Presence() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                    Aula de hoje
+                    Aulas de hoje
                   </p>
                   <p className="mt-1 font-display text-lg font-bold capitalize text-content">
                     {today}
                   </p>
                 </div>
-                <Badge tone="primary">Ativa</Badge>
+                <Badge tone="primary">{aulas.length}</Badge>
               </div>
 
-              <p className="font-display text-base font-bold uppercase tracking-tight text-content">
-                {DEMO_CLASS.modality}
-              </p>
-
-              <div className="space-y-2.5 border-t border-line pt-4 text-sm">
-                <p className="flex items-center gap-2.5 text-content">
-                  <Clock size={16} className="text-primary" /> {DEMO_CLASS.time}
-                </p>
-                <p className="flex items-center gap-2.5 text-content">
-                  <User size={16} className="text-primary" /> {DEMO_CLASS.instructor}
-                </p>
-                <p className="flex items-center gap-2.5 text-content">
-                  <MapPin size={16} className="text-primary" /> {DEMO_CLASS.location}
-                </p>
-              </div>
+              {aulas.length === 0 ? (
+                <EmptyState
+                  icon={GraduationCap}
+                  message="Nenhuma aula cadastrada para hoje."
+                />
+              ) : (
+                <div className="flex flex-col gap-2 border-t border-line pt-4">
+                  {aulas.map((a) => {
+                    const active = a.id_aula === selectedAula
+                    return (
+                      <button
+                        key={a.id_aula}
+                        onClick={() => setSelectedAula(a.id_aula)}
+                        className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                          active
+                            ? 'border-primary bg-primary-soft'
+                            : 'border-line bg-surface hover:border-primary/40'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-content">
+                            {a.conteudo ?? 'Aula'}
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted">
+                            <Clock size={13} className="text-primary" />
+                            {formatTime(a.data_aula) || '—'}
+                            {a.faixa && <span>· {a.faixa}</span>}
+                          </p>
+                        </div>
+                        {active && (
+                          <ShieldCheck size={16} className="shrink-0 text-primary" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </Card>
 
             <div className="flex flex-col gap-3">
               <MapView
-                point={GYM_POINT}
+                point={point}
                 label={DEMO_GYM.name}
                 distance={
                   geo.status === 'inside' || geo.status === 'outside'
@@ -180,9 +254,9 @@ export function Presence() {
                     : undefined
                 }
                 height={150}
-                onOpen={() => openDirections(GYM_POINT)}
+                onOpen={() => openDirections(point)}
               />
-              <Button variant="secondary" onClick={() => openDirections(GYM_POINT)}>
+              <Button variant="secondary" onClick={() => openDirections(point)}>
                 <Navigation size={17} /> Como chegar
               </Button>
             </div>
@@ -193,16 +267,16 @@ export function Presence() {
 
         <InfoNote>
           A presença só é registrada quando você está na academia (até{' '}
-          {CHECKIN_RADIUS_M} m) e há uma aula ativa.
+          {CHECKIN_RADIUS_M} m), há uma aula ativa e ela é da sua graduação.
         </InfoNote>
 
-        <GeofencePanel geo={geo} onRetry={verifyLocation} />
+        <GeofencePanel geo={geo} onRetry={verifyLocation} point={point} />
 
         {error && <FormError>{error}</FormError>}
 
         <Button
           loading={loading}
-          disabled={geo.status !== 'inside'}
+          disabled={geo.status !== 'inside' || !selectedAula}
           onClick={handleConfirm}
         >
           {geo.status === 'inside' ? (
@@ -225,9 +299,11 @@ export function Presence() {
 function GeofencePanel({
   geo,
   onRetry,
+  point,
 }: {
   geo: GeoState
   onRetry: () => void
+  point: LatLng
 }) {
   if (geo.status === 'checking') {
     return (
@@ -260,7 +336,7 @@ function GeofencePanel({
         ? 'Permita o acesso à localização para confirmar sua presença.'
         : geo.status === 'unsupported'
           ? 'Seu dispositivo não suporta geolocalização.'
-          : 'Não foi possível obter sua localização. Tente novamente.'
+          : 'Não foi possível obter sua localização (ou a academia ainda não cadastrou a dela). Tente novamente.'
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary-soft px-4 py-3.5">
@@ -277,7 +353,7 @@ function GeofencePanel({
         </button>
         {isOutside && (
           <button
-            onClick={() => openDirections(GYM_POINT)}
+            onClick={() => openDirections(point)}
             className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface text-sm font-semibold text-content transition-colors hover:border-content/30"
           >
             <Navigation size={16} /> Como chegar

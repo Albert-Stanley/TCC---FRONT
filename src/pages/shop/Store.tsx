@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, ShoppingBag, Truck, Settings } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useProductsStore } from '@/store/productsStore'
+import { listProducts } from '@/lib/shopApi'
 import { Header } from '@/components/layout/Header'
 import { Hero } from '@/components/ui/Hero'
 import { Badge } from '@/components/ui/Badge'
@@ -19,6 +20,10 @@ export function Store() {
   const allProducts = useProductsStore((s) => s.products)
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Todos')
   const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    void listProducts()
+  }, [])
 
   const products = useMemo(() => {
     const q = query.trim().toLowerCase()

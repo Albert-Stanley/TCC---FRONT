@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Pencil, Trash2, ShoppingBag, X, RotateCcw } from 'lucide-react'
+import { Plus, Pencil, Trash2, ShoppingBag, X } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { useProductsStore } from '@/store/productsStore'
-import { saveProduct, deleteProduct } from '@/lib/shopApi'
+import { listProducts, saveProduct, deleteProduct } from '@/lib/shopApi'
 import {
   CATEGORIES,
   CATEGORY_STYLE,
@@ -25,6 +25,8 @@ interface FormState {
   name: string
   category: ShopCategory
   price: string
+  stock: string
+  image: string
   emoji: string
   description: string
   sizes: string
@@ -36,6 +38,8 @@ const EMPTY_FORM: FormState = {
   name: '',
   category: 'Equipamentos',
   price: '',
+  stock: '1',
+  image: '',
   emoji: '🥋',
   description: '',
   sizes: '',
@@ -59,6 +63,8 @@ function productToForm(p: Product): FormState {
     name: p.name,
     category: p.category,
     price: centsToReais(p.priceCents),
+    stock: String(p.stock ?? 1),
+    image: p.image ?? '',
     emoji: p.emoji,
     description: p.description,
     sizes: (p.sizes ?? []).join(', '),
@@ -73,13 +79,16 @@ const fieldClass =
 export function ManageProducts() {
   const navigate = useNavigate()
   const products = useProductsStore((s) => s.products)
-  const resetCatalog = useProductsStore((s) => s.resetCatalog)
 
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  useEffect(() => {
+    void listProducts()
+  }, [])
 
   const sorted = useMemo(
     () => [...products].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
@@ -124,10 +133,12 @@ export function ManageProducts() {
       editingId !== 'new' ? products.find((p) => p.id === editingId) : undefined
 
     const product: Product = {
-      id: existing?.id ?? crypto.randomUUID(),
+      id: existing?.id ?? '',
       name: form.name.trim(),
       category: form.category,
       priceCents,
+      stock: Math.min(Math.max(Number(form.stock) || 1, 1), 20),
+      image: form.image.trim() || undefined,
       emoji: form.emoji.trim() || '🥋',
       description: form.description.trim(),
       rating: existing?.rating ?? 0,
@@ -215,6 +226,30 @@ export function ManageProducts() {
                 placeholder="0,00"
                 leftSlot={<span className="text-sm font-semibold">R$</span>}
               />
+            </div>
+
+            <Input
+              label="Quantidade em estoque (1 a 20)"
+              value={form.stock}
+              onChange={(e) => update('stock', e.target.value)}
+              inputMode="numeric"
+              placeholder="1"
+            />
+
+            <div>
+              <Input
+                label="Imagem (URL)"
+                value={form.image}
+                onChange={(e) => update('image', e.target.value)}
+                placeholder="https://.../foto.jpg"
+              />
+              {form.image.trim() && (
+                <img
+                  src={form.image.trim()}
+                  alt="Prévia"
+                  className="mt-2 h-28 w-28 rounded-xl border border-line object-cover"
+                />
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -326,16 +361,6 @@ export function ManageProducts() {
                 </div>
               </>
             )}
-
-            <button
-              onClick={() => {
-                if (window.confirm('Restaurar o catálogo padrão? Suas alterações serão perdidas.'))
-                  resetCatalog()
-              }}
-              className="mt-2 flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted transition-colors hover:text-content"
-            >
-              <RotateCcw size={14} /> Restaurar catálogo padrão
-            </button>
 
             <Button variant="ghost" onClick={() => navigate('/store')}>
               Ver a loja

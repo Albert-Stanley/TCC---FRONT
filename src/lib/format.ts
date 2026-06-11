@@ -57,3 +57,11 @@ export function formatDate(value?: string): string {
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleDateString('pt-BR')
 }
+
+/** Formats an ISO date (or date string) as HH:MM; returns '' if invalid. */
+export function formatTime(value?: string): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}

@@ -5,6 +5,7 @@ import { useGymStore } from '@/store/gymStore'
 import { useInviteStore } from '@/store/inviteStore'
 import { useClassStore } from '@/store/classStore'
 import { useThemeStore, applyTheme } from '@/store/themeStore'
+import { fetchProfile } from '@/lib/auth'
 import { PREVIEW_MODE, PREVIEW_USER } from '@/lib/preview'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { NavLayout } from '@/components/layout/NavLayout'
@@ -35,6 +36,16 @@ export function App() {
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
+
+  // On boot, if a session is persisted, refresh the role/profile from the
+  // backend (keeps role current, e.g. after the user becomes a teacher).
+  useEffect(() => {
+    if (PREVIEW_MODE) return
+    if (!useAuthStore.getState().token) return
+    fetchProfile()
+      .then((user) => useAuthStore.getState().setUser(user))
+      .catch(() => {})
+  }, [])
 
   // While previewing without a backend, seed a demo session so role-based
   // screens (student + teacher) render. No-op once real auth is restored.

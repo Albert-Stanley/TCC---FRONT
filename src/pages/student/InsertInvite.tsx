@@ -46,7 +46,7 @@ export function InsertInvite() {
 
     setLoading(true)
     try {
-      await api.post(`/Gym/Invite/Join/${encodeURIComponent(token)}`)
+      await api.post('/Gyms/Requests/Join', { convite_uuid: token })
       setSent(true)
     } catch (err) {
       // 400 means the token is invalid/expired per the API contract.

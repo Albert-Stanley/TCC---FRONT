@@ -206,7 +206,7 @@ export function Students() {
     setBusyId(id)
     setError(null)
     try {
-      await api.post('/Gym/Students/Remove', { id_aluno: id })
+      await api.delete(`/Gyms/Students/${encodeURIComponent(String(id))}`)
       removeStudent(id)
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível remover o aluno.'))

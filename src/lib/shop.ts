@@ -25,6 +25,10 @@ export interface Product {
   description: string
   sizes?: string[]
   freeShipping?: boolean
+  /** Stock (backend `quantidade`). */
+  stock?: number
+  /** Image URL (backend `imagem_url`). Falls back to the emoji glyph when absent. */
+  image?: string
 }
 
 export const CATEGORIES: (ShopCategory | 'Todos')[] = [

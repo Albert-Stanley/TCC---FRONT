@@ -3,16 +3,17 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { api, getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { fetchProfile } from '@/lib/auth'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Brand } from '@/components/ui/Brand'
 import { Logo } from '@/components/ui/Logo'
 import { FormError } from '@/components/ui/FormError'
-import type { AuthResponse, LoginPayload } from '@/types'
 
 export function Login() {
   const navigate = useNavigate()
   const setSession = useAuthStore((s) => s.setSession)
+  const setUser = useAuthStore((s) => s.setUser)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,12 +26,15 @@ export function Login() {
     setError(null)
     setLoading(true)
     try {
-      const payload: LoginPayload = { email, password }
-      const { data } = await api.post<AuthResponse>('/Auth', payload)
-      if (!data?.token) {
+      const { data: token } = await api.post<string>('/Users/Auth', {
+        email,
+        senha: password,
+      })
+      if (!token || typeof token !== 'string') {
         throw new Error('O servidor não retornou um token de acesso.')
       }
-      setSession(data.token, data.user ?? null)
+      setSession(token)
+      setUser(await fetchProfile())
       navigate('/home', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, 'E-mail ou senha inválidos.'))

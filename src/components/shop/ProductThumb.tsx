@@ -10,6 +10,19 @@ export function ProductThumb({
   className?: string
   glyph?: string
 }) {
+  if (product.image) {
+    return (
+      <div className={`overflow-hidden bg-canvas ${className}`}>
+        <img
+          src={product.image}
+          alt={product.name}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    )
+  }
+
   return (
     <div
       className={`flex items-center justify-center bg-gradient-to-br ${CATEGORY_STYLE[product.category]} ${className}`}

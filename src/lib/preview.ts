@@ -5,7 +5,7 @@ import type { User } from '@/types'
  * demo session is seeded so the entire app (student + teacher flows) can be
  * browsed without a backend. Flip to `false` to restore real authentication.
  */
-export const PREVIEW_MODE = true
+export const PREVIEW_MODE = false
 
 /** Demo user used to populate role-based UI while previewing. */
 export const PREVIEW_USER: User = {

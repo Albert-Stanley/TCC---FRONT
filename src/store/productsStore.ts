@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { PRODUCTS, type Product } from '@/lib/shop'
+import type { Product } from '@/lib/shop'
 
 /**
  * Editable shop catalog — the live source of truth for both the storefront and
@@ -24,7 +24,7 @@ interface ProductsState {
 export const useProductsStore = create<ProductsState>()(
   persist(
     (set) => ({
-      products: PRODUCTS,
+      products: [],
       setProducts: (products) => set({ products }),
       upsertProduct: (product) =>
         set((s) => {
@@ -37,7 +37,7 @@ export const useProductsStore = create<ProductsState>()(
         }),
       removeProduct: (id) =>
         set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
-      resetCatalog: () => set({ products: PRODUCTS }),
+      resetCatalog: () => set({ products: [] }),
     }),
     { name: 'kravconnect-products' },
   ),

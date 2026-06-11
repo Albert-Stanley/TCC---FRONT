@@ -14,7 +14,7 @@ import { FormError } from '@/components/ui/FormError'
 import { MapView } from '@/components/ui/MapView'
 import { maskCnpj, maskCep, onlyDigits } from '@/lib/format'
 import { lookupCep, geocodeAddress, type LatLng } from '@/lib/geo'
-import type { Gym } from '@/types'
+import { fetchProfile } from '@/lib/auth'
 
 const PERKS = [
   { icon: Link2, text: 'Gere convites e adicione alunos.' },
@@ -91,20 +91,17 @@ export function CreateGym() {
 
     setLoading(true)
     try {
-      // Backend verifies the CNPJ's partner against the CPF from the token.
-      // Address fields are kept client-side until the backend accepts them.
-      const payload = {
-        cpf: onlyDigits(user?.cpf ?? ''),
+      await api.post('/Gyms/Creation', {
         cnpj: onlyDigits(cnpj),
-        name,
-      }
-      const { data } = await api.post<Gym | { gym?: Gym } | null>(
-        '/Gym/Create',
-        payload,
-      )
+        nome: name,
+      })
 
-      const created =
-        (data && 'gym' in data ? data.gym : (data as Gym)) ?? null
+      // Persist the gym's geolocation (used for the students' GPS check-in).
+      if (coords) {
+        await api
+          .put('/Gyms/Location', { latitude: coords.lat, longitude: coords.lng })
+          .catch(() => {})
+      }
 
       const addressStr =
         [number ? `${street}, ${number}` : street, district]
@@ -113,9 +110,9 @@ export function CreateGym() {
       const cityStr = [city, uf].filter(Boolean).join(' · ') || undefined
 
       setGym({
-        id: created?.id ?? onlyDigits(cnpj),
-        name: created?.name ?? name,
-        cnpj: created?.cnpj ?? onlyDigits(cnpj),
+        id: onlyDigits(cnpj),
+        name,
+        cnpj: onlyDigits(cnpj),
         teacherName: user?.name,
         address: addressStr,
         city: cityStr,
@@ -124,8 +121,12 @@ export function CreateGym() {
         lng: coords?.lng,
       })
 
-      // Creating a gym promotes the user to teacher for this session.
-      if (user) setUser({ ...user, role: 'teacher' })
+      // Creating a gym promotes the user to teacher — refresh role from backend.
+      try {
+        setUser(await fetchProfile())
+      } catch {
+        if (user) setUser({ ...user, role: 'teacher' })
+      }
       navigate('/home', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível criar a academia.'))

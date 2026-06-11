@@ -1,50 +1,97 @@
+import { api, asList } from '@/lib/api'
 import { useProductsStore } from '@/store/productsStore'
 import { useOrderStore } from '@/store/orderStore'
 import { sendOrderConfirmation } from '@/lib/mailer'
-import type { Order, Product } from '@/lib/shop'
+import type { Order, Product, ShopCategory } from '@/lib/shop'
 
 /**
- * Shop data layer — the single seam between the UI and the catalog source.
+ * Shop data layer — the single seam between the UI and the backend catalog.
  *
- * Today every call is served from the local `productsStore` (mock catalog), so
- * the whole shop works without a backend. When the products API is available,
- * swap each function body for the matching `api` call (confirm the real paths
- * with the backend — they are NOT in the authoritative endpoint map yet) and
- * the rest of the app — storefront and the teacher CRUD — keeps working
- * unchanged. A typical real implementation would also keep `productsStore` as a
- * cache, updating it after each successful request.
+ * The backend catalog is minimal: { id_produto, nome, preco, tamanho,
+ * quantidade }. The rich storefront fields (category, emoji, rating, reviews,
+ * description) have no backend counterpart and are filled with sensible
+ * defaults here, so the UI keeps working. The backend has no order/checkout
+ * endpoint, so "placing an order" signals interest per item instead.
  */
 
-/** Lists the full catalog. */
-export async function listProducts(): Promise<Product[]> {
-  // BACKEND: return asList<Product>((await api.get('/Shop/Products')).data)
-  return useProductsStore.getState().products
+interface ProdutoDTO {
+  id_produto: string
+  nome: string
+  preco: number
+  tamanho?: string
+  quantidade?: number
+  imagem_url?: string
 }
 
-/** Creates a product (when new) or updates the existing one with the same id. */
+const DEFAULT_CATEGORY: ShopCategory = 'Equipamentos'
+
+/** Backend ProdutoDTO → front Product (cosmetic fields get defaults). */
+function dtoToProduct(d: ProdutoDTO): Product {
+  return {
+    id: d.id_produto,
+    name: d.nome,
+    category: DEFAULT_CATEGORY,
+    priceCents: Math.round((d.preco ?? 0) * 100),
+    emoji: '🥋',
+    rating: 0,
+    reviews: 0,
+    description: '',
+    sizes: d.tamanho ? d.tamanho.split('/').filter(Boolean) : undefined,
+    stock: d.quantidade,
+    image: d.imagem_url || undefined,
+  }
+}
+
+/** Lists the full catalog (GET /Gyms/Catalog) and caches it. */
+export async function listProducts(): Promise<Product[]> {
+  const { data } = await api.get('/Gyms/Catalog')
+  const products = asList<ProdutoDTO>(data).map(dtoToProduct)
+  useProductsStore.getState().setProducts(products)
+  return products
+}
+
+/**
+ * Creates (no id) or updates (has id) a product. The backend requires a single
+ * `tamanho` and a `quantidade` (1–20), so the sizes array is joined and the
+ * stock is clamped. Reloads the catalog so created products get their real id.
+ */
 export async function saveProduct(product: Product): Promise<Product> {
-  // BACKEND: const { data } = await api.post('/Shop/Products', product)
-  //          useProductsStore.getState().upsertProduct(data); return data
-  useProductsStore.getState().upsertProduct(product)
+  const body = {
+    nome: product.name,
+    preco: product.priceCents / 100,
+    tamanho: (product.sizes ?? []).join('/').slice(0, 20) || 'Único',
+    quantidade: Math.min(Math.max(product.stock ?? 1, 1), 20),
+    imagem_url: product.image ?? '',
+  }
+  if (product.id) {
+    await api.put('/Gyms/Catalog/Update', { id_produto: product.id, ...body })
+  } else {
+    await api.post('/Gyms/Catalog/Creation', body)
+  }
+  await listProducts().catch(() => {})
   return product
 }
 
-/** Deletes a product by id. */
+/** Deletes a product (DELETE /Gyms/Catalog/{id}). */
 export async function deleteProduct(id: string): Promise<void> {
-  // BACKEND: await api.delete(`/Shop/Products/${id}`)
+  await api.delete(`/Gyms/Catalog/${encodeURIComponent(id)}`)
   useProductsStore.getState().removeProduct(id)
 }
 
 /**
- * Places an order: records it and triggers the confirmation email.
- *
- * MOCK today (records locally + simulated email). With a backend, the order
- * endpoint should both persist the order and send the email server-side:
- *   // const { data } = await api.post('/Shop/Orders', order)
- *   // useOrderStore.getState().addOrder(data); return data
- * Email failure must not fail the purchase, so it is awaited best-effort.
+ * No order/checkout endpoint exists on the backend, so each cart item is sent
+ * as an interest signal (POST /Student/Interest). The order is still recorded
+ * locally and the confirmation e-mail is sent best-effort.
  */
 export async function placeOrder(order: Order): Promise<Order> {
+  for (const item of order.items) {
+    await api
+      .post('/Student/Interest', {
+        id_produto: item.productId,
+        quantidade: item.qty,
+      })
+      .catch(() => {})
+  }
   useOrderStore.getState().addOrder(order)
   await sendOrderConfirmation(order).catch(() => {})
   return order
