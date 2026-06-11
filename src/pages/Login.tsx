@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { api, getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
@@ -12,6 +12,9 @@ import { FormError } from '@/components/ui/FormError'
 
 export function Login() {
   const navigate = useNavigate()
+  // Set by ProtectedRoute when an unauthenticated user followed a deep link
+  // (e.g. an invite); after login they resume where they were heading.
+  const from = (useLocation().state as { from?: string } | null)?.from
   const setSession = useAuthStore((s) => s.setSession)
   const setUser = useAuthStore((s) => s.setUser)
 
@@ -35,7 +38,7 @@ export function Login() {
       }
       setSession(token)
       setUser(await fetchProfile())
-      navigate('/home', { replace: true })
+      navigate(from ?? '/home', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, 'E-mail ou senha inválidos.'))
     } finally {
@@ -93,6 +96,15 @@ export function Login() {
                 </button>
               }
             />
+          </div>
+
+          <div className="-mt-2 flex justify-end">
+            <Link
+              to="/forgot-password"
+              className="text-sm font-semibold text-primary"
+            >
+              Esqueci minha senha
+            </Link>
           </div>
 
           {error && <FormError>{error}</FormError>}

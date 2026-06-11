@@ -27,12 +27,22 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Response interceptor: on 401 the token is invalid/expired -> clear session.
+// Response interceptor: clear the session when the token expired. The backend
+// answers 400 (not 401) with a bare-string message for JWT failures.
+const JWT_ERRORS = new Set(['token jwt invalido', 'Token JWT ausente'])
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      useAuthStore.getState().logout()
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status
+      const data = error.response?.data
+      const hadToken = Boolean(useAuthStore.getState().token)
+      if (
+        status === 401 ||
+        (status === 400 && hadToken && typeof data === 'string' && JWT_ERRORS.has(data))
+      ) {
+        useAuthStore.getState().logout()
+      }
     }
     return Promise.reject(error)
   },

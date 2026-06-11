@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { api, asList, getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
+import { enrolledGym } from '@/lib/auth'
 import { Header } from '@/components/layout/Header'
 import { FormLayout } from '@/components/layout/FormLayout'
 import { Card } from '@/components/ui/Card'
@@ -64,7 +65,9 @@ type GeoState =
  */
 export function Presence() {
   const navigate = useNavigate()
-  const userFaixa = useAuthStore((s) => s.user?.faixa)
+  const user = useAuthStore((s) => s.user)
+  const userFaixa = user?.faixa
+  const gymName = enrolledGym(user)?.nome ?? DEMO_GYM.name
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -246,7 +249,7 @@ export function Presence() {
             <div className="flex flex-col gap-3">
               <MapView
                 point={point}
-                label={DEMO_GYM.name}
+                label={gymName}
                 distance={
                   geo.status === 'inside' || geo.status === 'outside'
                     ? formatDistance(geo.distanceM)

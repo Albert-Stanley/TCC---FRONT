@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  ExternalLink,
   CheckCircle2,
   CalendarClock,
   Download,
@@ -26,13 +25,10 @@ import {
 } from '@/lib/demo'
 import { formatBRL, formatDate } from '@/lib/format'
 
-/** Shape we try to read from the Abacate Pay response (best-effort). */
+/** Response of POST /Student/Payment (Stripe PaymentIntent). */
 interface PaymentResponse {
-  url?: string
-  paymentUrl?: string
-  checkoutUrl?: string
-  brCode?: string
-  amount?: number
+  id_pagamento?: string
+  client_secret?: string
 }
 
 /** Builds and downloads a plain-text receipt for a paid invoice. */
@@ -72,7 +68,10 @@ export function Payment() {
     setError(null)
     setLoading(true)
     try {
-      const { data } = await api.post<PaymentResponse>('/Student/Payment')
+      // The backend creates a Stripe PaymentIntent for the given amount.
+      const { data } = await api.post<PaymentResponse>('/Student/Payment', {
+        valor_centavos: DEMO_BILLING.amountCents,
+      })
       setResult(data ?? {})
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível iniciar o pagamento.'))
@@ -80,9 +79,6 @@ export function Payment() {
       setLoading(false)
     }
   }
-
-  const checkoutUrl = result?.url ?? result?.paymentUrl ?? result?.checkoutUrl
-  const paidAmount = result?.amount ?? DEMO_BILLING.amountCents
 
   if (result) {
     return (
@@ -96,22 +92,15 @@ export function Payment() {
             Pagamento iniciado!
           </h1>
           <p className="mt-2 text-sm text-muted">
-            {checkoutUrl
-              ? `Conclua o pagamento de ${formatBRL(paidAmount)} na página segura da Abacate Pay.`
-              : 'Seu pagamento foi registrado. Acompanhe o status na sua academia.'}
+            Seu pagamento de {formatBRL(DEMO_BILLING.amountCents)} foi iniciado
+            na Stripe. Acompanhe o status na sua academia.
           </p>
+          {result.id_pagamento && (
+            <p className="mt-3 rounded-xl bg-canvas px-4 py-2 font-mono text-xs text-muted">
+              Código: {result.id_pagamento}
+            </p>
+          )}
           <div className="mt-8 flex w-full flex-col gap-3">
-            {checkoutUrl && (
-              <a
-                href={checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-semibold uppercase tracking-wide text-white shadow-primary transition-all hover:bg-primary-dark active:scale-[0.98]"
-              >
-                <ExternalLink size={18} />
-                Abrir pagamento
-              </a>
-            )}
             <Button variant="secondary" onClick={() => navigate('/gyms')}>
               Voltar
             </Button>
@@ -167,8 +156,7 @@ export function Payment() {
         <SectionTitle underline>Pagar mensalidade</SectionTitle>
 
         <InfoNote>
-          Você será redirecionado para o ambiente seguro da Abacate Pay para
-          concluir o pagamento.
+          O pagamento é processado com segurança pela Stripe.
         </InfoNote>
 
         {error && <FormError>{error}</FormError>}

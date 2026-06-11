@@ -9,7 +9,7 @@
 export const DEMO_BILLING = {
   amountCents: 14990,
   plan: 'Plano Mensal',
-  method: 'Abacate Pay',
+  method: 'Stripe',
   dueDay: 10,
 }
 

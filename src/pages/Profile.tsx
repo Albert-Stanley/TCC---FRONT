@@ -1,23 +1,40 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, GraduationCap, UserRound, CheckCircle2 } from 'lucide-react'
-import { api, getErrorMessage } from '@/lib/api'
+import {
+  LogOut,
+  GraduationCap,
+  UserRound,
+  Mail,
+  FileText,
+  Building2,
+  RefreshCw,
+} from 'lucide-react'
+import { getErrorMessage } from '@/lib/api'
+import { fetchProfile } from '@/lib/auth'
 import { useAuthStore } from '@/store/authStore'
 import { useGymStore } from '@/store/gymStore'
 import { PREVIEW_MODE } from '@/lib/preview'
-import { DEMO_GYM } from '@/lib/demo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Header } from '@/components/layout/Header'
 import { FormLayout } from '@/components/layout/FormLayout'
-import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { FormError } from '@/components/ui/FormError'
-import { maskCep, maskCpf, maskCnpj, onlyDigits } from '@/lib/format'
-import type { User } from '@/types'
+import { maskCpf, maskCnpj } from '@/lib/format'
 
+const VINCULO_LABEL: Record<string, string> = {
+  professor: 'Professor',
+  instrutor: 'Instrutor',
+  aluno: 'Aluno',
+}
+
+/**
+ * Profile screen. The backend has no profile-update endpoint, so the screen is
+ * informative: it shows the data from GET /Users/Me (identity, role, belt and
+ * the gyms the user belongs to) and offers logout + theme.
+ */
 export function Profile() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
@@ -25,52 +42,29 @@ export function Profile() {
   const logout = useAuthStore((s) => s.logout)
   const gym = useGymStore((s) => s.gym)
 
-  const [name, setName] = useState(user?.name ?? '')
-  const [email, setEmail] = useState(user?.email ?? '')
-  const [cpf, setCpf] = useState(maskCpf(user?.cpf ?? ''))
-  const [cep, setCep] = useState(maskCep(user?.cep ?? ''))
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const isTeacher = user?.role === 'teacher'
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault()
+  // Refresh the profile from the backend on entry (belt promotions, new gyms).
+  useEffect(() => {
+    if (PREVIEW_MODE) return
+    fetchProfile()
+      .then(setUser)
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handleRefresh() {
     setError(null)
-    setSuccess(false)
-
-    if (cpf && onlyDigits(cpf).length !== 11) {
-      setError('Informe um CPF válido (11 dígitos).')
-      return
-    }
-    if (cep && onlyDigits(cep).length !== 8) {
-      setError('Informe um CEP válido (8 dígitos).')
-      return
-    }
-
-    setLoading(true)
+    setRefreshing(true)
     try {
-      const payload = {
-        name,
-        email,
-        cpf: onlyDigits(cpf),
-        cep: onlyDigits(cep),
-      }
-      const { data } = await api.put<User | { user?: User } | null>(
-        '/users/update',
-        payload,
-      )
-      // Merge whatever the server confirms back into the session user.
-      const updated = (data && 'user' in data ? data.user : (data as User)) ?? null
-      if (user) {
-        setUser({ ...user, ...payload, ...(updated ?? {}) })
-      }
-      setSuccess(true)
+      setUser(await fetchProfile())
     } catch (err) {
-      setError(getErrorMessage(err, 'Não foi possível salvar as alterações.'))
+      setError(getErrorMessage(err, 'Não foi possível atualizar o perfil.'))
     } finally {
-      setLoading(false)
+      setRefreshing(false)
     }
   }
 
@@ -79,11 +73,13 @@ export function Profile() {
     navigate('/login', { replace: true })
   }
 
+  const academias = user?.academias ?? []
+
   return (
     <div className="flex flex-col">
       <Header
         title="Perfil"
-        subtitle="Gerencie seus dados e preferências da conta."
+        subtitle="Seus dados e preferências da conta."
         back={false}
       />
 
@@ -102,40 +98,25 @@ export function Profile() {
                   {user?.name ?? 'Atleta'}
                 </h2>
                 <p className="truncate text-sm text-muted">{user?.email}</p>
-                <Badge tone={isTeacher ? 'primary' : 'ink'} className="mt-1.5">
-                  {isTeacher ? 'Professor' : 'Aluno'}
-                </Badge>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <Badge tone={isTeacher ? 'primary' : 'ink'}>
+                    {isTeacher ? 'Professor' : 'Aluno'}
+                  </Badge>
+                  {user?.faixa && <Badge tone="soft">Faixa {user.faixa}</Badge>}
+                </div>
               </div>
             </Card>
 
-            {/* Account summary */}
-            {isTeacher ? (
+            {/* Teacher gym summary */}
+            {isTeacher && gym && (
               <Card className="flex flex-col gap-2.5">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted">
                   Minha academia
                 </p>
-                <SummaryRow label="Academia" value={gym?.name ?? DEMO_GYM.name} />
-                {gym?.cnpj && <SummaryRow label="CNPJ" value={maskCnpj(gym.cnpj)} />}
-                <SummaryRow label="Local" value={gym?.city ?? DEMO_GYM.city} />
+                <SummaryRow label="Academia" value={gym.name ?? '—'} />
+                {gym.cnpj && <SummaryRow label="CNPJ" value={maskCnpj(gym.cnpj)} />}
+                {gym.city && <SummaryRow label="Local" value={gym.city} />}
               </Card>
-            ) : (
-              PREVIEW_MODE && (
-                <Card className="flex flex-col gap-2.5">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                    Minha conta
-                  </p>
-                  <SummaryRow label="Faixa" value={DEMO_GYM.belt} />
-                  <SummaryRow label="Plano" value={DEMO_GYM.plan} />
-                  <SummaryRow
-                    label="Presenças no mês"
-                    value={String(DEMO_GYM.attendanceMonth)}
-                  />
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted">Mensalidade</span>
-                    <Badge tone="success">Em dia</Badge>
-                  </div>
-                </Card>
-              )
             )}
 
             {/* Preview-only role switcher (browse student + teacher flows). */}
@@ -177,60 +158,64 @@ export function Profile() {
           </>
         }
       >
-        {/* Edit form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <Input
-            name="name"
-            label="Nome completo"
-            placeholder="Seu nome"
-            autoComplete="name"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <Input
-            name="email"
-            type="email"
-            label="E-mail"
-            placeholder="seu@email.com"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <Input
-            name="cpf"
+        {/* Account data (read-only — the backend has no profile-update endpoint) */}
+        <Card className="flex flex-col gap-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">
+            Dados da conta
+          </p>
+          <InfoRow icon={UserRound} label="Nome" value={user?.name} />
+          <InfoRow icon={Mail} label="E-mail" value={user?.email} />
+          <InfoRow
+            icon={FileText}
             label="CPF"
-            placeholder="000.000.000-00"
-            inputMode="numeric"
-            value={cpf}
-            onChange={(e) => setCpf(maskCpf(e.target.value))}
+            value={user?.cpf ? maskCpf(user.cpf) : undefined}
           />
-          <Input
-            name="cep"
-            label="CEP"
-            placeholder="00000-000"
-            inputMode="numeric"
-            value={cep}
-            onChange={(e) => setCep(maskCep(e.target.value))}
-          />
-
-          {error && <FormError>{error}</FormError>}
-          {success && (
-            <p
-              role="status"
-              className="flex items-center gap-2.5 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-600"
-            >
-              <CheckCircle2 size={18} className="shrink-0" />
-              Alterações salvas com sucesso.
-            </p>
+          {user?.faixa && (
+            <InfoRow icon={GraduationCap} label="Graduação" value={`Faixa ${user.faixa}`} />
           )}
+        </Card>
 
-          <Button type="submit" loading={loading} className="mt-1">
-            Salvar alterações
-          </Button>
-        </form>
+        {/* Gyms the user belongs to (GET /Users/Me → academias) */}
+        <Card className="flex flex-col gap-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">
+            Minhas academias
+          </p>
+          {academias.length === 0 ? (
+            <p className="text-sm text-muted">
+              Você ainda não participa de nenhuma academia.
+            </p>
+          ) : (
+            academias.map((a) => (
+              <div
+                key={`${a.id}-${a.vinculo}`}
+                className="flex items-center gap-3 rounded-xl border border-line bg-canvas px-3.5 py-3"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink text-white dark:bg-white/10">
+                  <Building2 size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-content">{a.nome}</p>
+                  <p className="truncate text-xs text-muted">
+                    {a.cnpj ? `CNPJ ${maskCnpj(a.cnpj)}` : '—'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Badge tone={a.vinculo === 'aluno' ? 'ink' : 'primary'}>
+                    {VINCULO_LABEL[a.vinculo] ?? a.vinculo}
+                  </Badge>
+                  {a.faixa && <Badge tone="soft">Faixa {a.faixa}</Badge>}
+                </div>
+              </div>
+            ))
+          )}
+        </Card>
 
+        {error && <FormError>{error}</FormError>}
+
+        <Button variant="secondary" loading={refreshing} onClick={handleRefresh}>
+          <RefreshCw size={17} />
+          Atualizar dados
+        </Button>
         <Button variant="secondary" onClick={handleLogout}>
           <LogOut size={18} />
           Sair
@@ -245,6 +230,28 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between gap-3">
       <span className="text-sm text-muted">{label}</span>
       <span className="truncate text-sm font-semibold text-content">{value}</span>
+    </div>
+  )
+}
+
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Mail
+  label: string
+  value?: string
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon size={16} className="mt-0.5 shrink-0 text-muted" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+          {label}
+        </p>
+        <p className="truncate text-sm text-content">{value ?? '—'}</p>
+      </div>
     </div>
   )
 }

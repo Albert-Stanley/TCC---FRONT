@@ -6,16 +6,14 @@ import {
   GraduationCap,
   Search,
   ChevronDown,
-  Mail,
-  Phone,
   FileText,
   MapPin,
   CalendarCheck,
-  CreditCard,
-  CalendarDays,
   Navigation,
+  Award,
+  Clock,
 } from 'lucide-react'
-import { api, getErrorMessage } from '@/lib/api'
+import { api, asList, getErrorMessage } from '@/lib/api'
 import { loadRoster } from '@/lib/roster'
 import { useGymStore } from '@/store/gymStore'
 import { useStudentsStore } from '@/store/studentsStore'
@@ -23,17 +21,16 @@ import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Logo } from '@/components/ui/Logo'
 import { Avatar } from '@/components/ui/Avatar'
-import { Badge } from '@/components/ui/Badge'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
-import { maskCpf, maskCnpj, maskCep, formatDate } from '@/lib/format'
+import { maskCpf, maskCnpj, formatDate } from '@/lib/format'
 import { DEMO_GYM } from '@/lib/demo'
 import { openDirections } from '@/lib/geo'
-import type { PaymentStatus, Student } from '@/types'
+import type { Student } from '@/types'
 
-type PayFilter = 'all' | 'paid' | 'due'
+const BELTS = ['Branca', 'Amarela', 'Laranja', 'Verde', 'Azul', 'Marrom', 'Preta']
 
 const beltDot = (belt?: string): string => {
   const b = (belt ?? '').toLowerCase()
@@ -47,10 +44,10 @@ const beltDot = (belt?: string): string => {
   return 'bg-neutral-400'
 }
 
-const PAY_BADGE: Record<PaymentStatus, { label: string; tone: 'success' | 'soft' | 'primary' }> = {
-  paid: { label: 'Em dia', tone: 'success' },
-  pending: { label: 'Pendente', tone: 'soft' },
-  late: { label: 'Atrasado', tone: 'primary' },
+/** Response of GET /Student/Presence/Count?id_aluno= (ContagemPresencaDTO). */
+interface PresenceCount {
+  contagem: number
+  presencas?: { nome_aula?: string; data?: string }[]
 }
 
 /** A single labelled detail field shown in the expanded student panel. */
@@ -59,7 +56,7 @@ function Field({
   label,
   value,
 }: {
-  icon: typeof Mail
+  icon: typeof FileText
   label: string
   value?: string | number
 }) {
@@ -81,15 +78,41 @@ function StudentRow({
   expanded,
   onToggle,
   onRemove,
-  removing,
+  onPromote,
+  onBelt,
+  busy,
 }: {
   student: Student
   expanded: boolean
   onToggle: () => void
   onRemove: () => void
-  removing: boolean
+  onPromote: () => void
+  onBelt: (faixa: string) => void
+  busy: boolean
 }) {
-  const pay = student.paymentStatus ? PAY_BADGE[student.paymentStatus] : null
+  const [presence, setPresence] = useState<PresenceCount | null>(null)
+  const [presenceError, setPresenceError] = useState(false)
+
+  // Fetch the student's attendance when the panel opens.
+  useEffect(() => {
+    if (!expanded || presence) return
+    api
+      .get('/Student/Presence/Count', {
+        params: { id_aluno: String(student.id_aluno) },
+      })
+      .then(({ data }) => {
+        const d = data as PresenceCount | null
+        setPresence({
+          contagem: d?.contagem ?? 0,
+          presencas: asList<{ nome_aula?: string; data?: string }>(d?.presencas),
+        })
+      })
+      .catch(() => setPresenceError(true))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded])
+
+  const recent = (presence?.presencas ?? []).slice(-3).reverse()
+
   return (
     <Card className="flex flex-col gap-0 p-0 overflow-hidden">
       <button
@@ -102,20 +125,20 @@ function StudentRow({
             {student.name ?? 'Aluno'}
           </h4>
           <div className="mt-0.5 flex items-center gap-1.5">
-            {student.belt && (
+            {student.belt ? (
               <>
                 <span className={`h-2 w-2 rounded-full ${beltDot(student.belt)}`} />
-                <span className="truncate text-xs text-muted">{student.belt}</span>
+                <span className="truncate text-xs text-muted">
+                  Faixa {student.belt}
+                </span>
               </>
-            )}
-            {!student.belt && (
+            ) : (
               <span className="truncate text-xs text-muted">
-                {student.email ?? (student.cpf ? maskCpf(student.cpf) : '—')}
+                {student.cpf ? maskCpf(student.cpf) : '—'}
               </span>
             )}
           </div>
         </div>
-        {pay && <Badge tone={pay.tone}>{pay.label}</Badge>}
         <ChevronDown
           size={18}
           className={`shrink-0 text-neutral-400 transition-transform ${
@@ -127,22 +150,79 @@ function StudentRow({
       {expanded && (
         <div className="animate-fade-in border-t border-line bg-canvas/40 px-3 pb-3 pt-3">
           <div className="grid grid-cols-2 gap-3">
-            <Field icon={Mail} label="E-mail" value={student.email} />
-            <Field icon={Phone} label="Telefone" value={student.phone} />
-            <Field icon={FileText} label="CPF" value={student.cpf ? maskCpf(student.cpf) : undefined} />
-            <Field icon={MapPin} label="CEP" value={student.cep ? maskCep(student.cep) : undefined} />
-            <Field icon={CreditCard} label="Plano" value={student.plan} />
-            <Field icon={CalendarDays} label="Entrou em" value={formatDate(student.joinedAt)} />
-            <Field icon={CalendarCheck} label="Última presença" value={formatDate(student.lastPresence)} />
-            <Field icon={Users} label="Presenças no mês" value={student.attendanceMonth} />
+            <Field
+              icon={FileText}
+              label="CPF"
+              value={student.cpf ? maskCpf(student.cpf) : undefined}
+            />
+            <Field
+              icon={CalendarCheck}
+              label="Presenças"
+              value={
+                presence ? presence.contagem : presenceError ? '—' : '…'
+              }
+            />
           </div>
-          <button
-            disabled={removing}
-            onClick={onRemove}
-            className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-line text-sm font-semibold uppercase tracking-wide text-primary transition-colors hover:bg-primary-soft disabled:opacity-50"
-          >
-            <Trash2 size={16} /> Remover aluno
-          </button>
+
+          {/* Belt — saved straight to PUT /Gyms/Students/{id}/Belt */}
+          <label className="mt-3 block">
+            <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+              <Award size={13} /> Graduação (faixa)
+            </span>
+            <select
+              value={student.belt ?? ''}
+              disabled={busy}
+              onChange={(e) => onBelt(e.target.value)}
+              className="h-11 w-full rounded-xl border border-line bg-surface px-3 text-sm text-content focus:border-primary focus:outline-none disabled:opacity-50"
+            >
+              <option value="" disabled>
+                Selecionar faixa…
+              </option>
+              {BELTS.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {/* Last check-ins */}
+          {recent.length > 0 && (
+            <div className="mt-3 flex flex-col gap-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                Últimas presenças
+              </p>
+              {recent.map((p, i) => (
+                <p
+                  key={i}
+                  className="flex items-center gap-2 truncate text-xs text-content"
+                >
+                  <Clock size={12} className="shrink-0 text-primary" />
+                  <span className="truncate">{p.nome_aula ?? 'Aula'}</span>
+                  <span className="ml-auto shrink-0 text-muted">
+                    {formatDate(p.data) || '—'}
+                  </span>
+                </p>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button
+              disabled={busy}
+              onClick={onPromote}
+              className="flex h-10 items-center justify-center gap-2 rounded-xl border border-line text-xs font-semibold uppercase tracking-wide text-content transition-colors hover:bg-primary-soft hover:text-primary disabled:opacity-50"
+            >
+              <GraduationCap size={15} /> Tornar instrutor
+            </button>
+            <button
+              disabled={busy}
+              onClick={onRemove}
+              className="flex h-10 items-center justify-center gap-2 rounded-xl border border-line text-xs font-semibold uppercase tracking-wide text-primary transition-colors hover:bg-primary-soft disabled:opacity-50"
+            >
+              <Trash2 size={15} /> Remover
+            </button>
+          </div>
         </div>
       )}
     </Card>
@@ -154,11 +234,12 @@ export function Students() {
   const gym = useGymStore((s) => s.gym)
   const students = useStudentsStore((s) => s.students)
   const removeStudent = useStudentsStore((s) => s.removeStudent)
+  const upsertStudent = useStudentsStore((s) => s.upsertStudent)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | number | null>(null)
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<PayFilter>('all')
   const [expandedId, setExpandedId] = useState<string | number | null>(null)
 
   useEffect(() => {
@@ -176,43 +257,83 @@ export function Students() {
     }
   }, [])
 
-  const stats = useMemo(() => {
-    let paid = 0
-    let due = 0
-    for (const s of students) {
-      if (s.paymentStatus === 'paid') paid++
-      else if (s.paymentStatus === 'pending' || s.paymentStatus === 'late') due++
-    }
-    return { total: students.length, paid, due }
+  const belts = useMemo(() => {
+    const set = new Set(students.map((s) => s.belt).filter(Boolean))
+    return set.size
   }, [students])
 
   const visible = students.filter((s) => {
     const q = query.trim().toLowerCase()
-    const matchesQuery =
+    return (
       !q ||
-      [s.name, s.email, s.belt, s.cpf]
+      [s.name, s.belt, s.cpf]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q))
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'paid' && s.paymentStatus === 'paid') ||
-      (filter === 'due' &&
-        (s.paymentStatus === 'pending' || s.paymentStatus === 'late'))
-    return matchesQuery && matchesFilter
+    )
   })
 
-  async function remove(id: string | number) {
-    if (!window.confirm('Remover este aluno da academia?')) return
+  /** Runs a mutation flagging the row busy + surfacing errors uniformly. */
+  async function mutate(
+    id: string | number,
+    fn: () => Promise<void>,
+    fallback: string,
+  ) {
     setBusyId(id)
     setError(null)
+    setSuccess(null)
     try {
-      await api.delete(`/Gyms/Students/${encodeURIComponent(String(id))}`)
-      removeStudent(id)
+      await fn()
     } catch (err) {
-      setError(getErrorMessage(err, 'Não foi possível remover o aluno.'))
+      setError(getErrorMessage(err, fallback))
     } finally {
       setBusyId(null)
     }
+  }
+
+  async function remove(id: string | number) {
+    if (!window.confirm('Remover este aluno da academia?')) return
+    await mutate(
+      id,
+      async () => {
+        await api.delete(`/Gyms/Students/${encodeURIComponent(String(id))}`)
+        removeStudent(id)
+      },
+      'Não foi possível remover o aluno.',
+    )
+  }
+
+  async function promote(student: Student) {
+    if (
+      !window.confirm(
+        `Tornar ${student.name ?? 'este aluno'} instrutor da academia?`,
+      )
+    )
+      return
+    await mutate(
+      student.id_aluno,
+      async () => {
+        await api.post('/Gyms/Instructors/Creation', {
+          id_aluno: String(student.id_aluno),
+        })
+        setSuccess(`${student.name ?? 'Aluno'} agora é instrutor da academia.`)
+      },
+      'Não foi possível promover o aluno.',
+    )
+  }
+
+  async function changeBelt(student: Student, faixa: string) {
+    await mutate(
+      student.id_aluno,
+      async () => {
+        await api.put(
+          `/Gyms/Students/${encodeURIComponent(String(student.id_aluno))}/Belt`,
+          { faixa },
+        )
+        upsertStudent({ ...student, belt: faixa })
+        setSuccess(`Faixa de ${student.name ?? 'aluno'} atualizada para ${faixa}.`)
+      },
+      'Não foi possível atualizar a faixa.',
+    )
   }
 
   const gymPoint =
@@ -221,17 +342,11 @@ export function Students() {
       : { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
   const gymAddress = gym?.address ?? DEMO_GYM.address
 
-  const FILTERS: { key: PayFilter; label: string; count: number }[] = [
-    { key: 'all', label: 'Todos', count: stats.total },
-    { key: 'paid', label: 'Em dia', count: stats.paid },
-    { key: 'due', label: 'Pendentes', count: stats.due },
-  ]
-
   return (
     <div className="flex flex-col">
       <Header
         title="Academia"
-        subtitle="Acompanhe alunos, faixas e mensalidades."
+        subtitle="Acompanhe alunos, faixas e presenças."
         back={false}
         right={
           <button
@@ -271,11 +386,10 @@ export function Students() {
         </Card>
 
         {/* Summary stats */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {[
-            { label: 'Alunos', value: stats.total, tone: 'text-content' },
-            { label: 'Em dia', value: stats.paid, tone: 'text-emerald-600' },
-            { label: 'Pendências', value: stats.due, tone: 'text-primary' },
+            { label: 'Alunos', value: students.length, tone: 'text-content' },
+            { label: 'Faixas na academia', value: belts, tone: 'text-primary' },
           ].map((s) => (
             <Card key={s.label} className="px-3 py-3 text-center">
               <p className={`font-display text-2xl font-extrabold ${s.tone}`}>
@@ -312,24 +426,15 @@ export function Students() {
           />
         </div>
 
-        {/* Payment filter chips */}
-        <div className="flex gap-2">
-          {FILTERS.map(({ key, label, count }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold uppercase tracking-wide transition-all ${
-                filter === key
-                  ? 'bg-primary text-white shadow-primary'
-                  : 'border border-line bg-surface text-muted hover:text-content'
-              }`}
-            >
-              {label} ({count})
-            </button>
-          ))}
-        </div>
-
         {error && <FormError>{error}</FormError>}
+        {success && (
+          <p
+            role="status"
+            className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-600"
+          >
+            {success}
+          </p>
+        )}
 
         {loading ? (
           <SkeletonList rows={4} />
@@ -339,7 +444,7 @@ export function Students() {
             message={
               students.length === 0
                 ? 'Nenhum aluno cadastrado ainda. Aprove solicitações para adicioná-los.'
-                : 'Nenhum aluno encontrado para esse filtro.'
+                : 'Nenhum aluno encontrado para essa busca.'
             }
           />
         ) : (
@@ -353,7 +458,9 @@ export function Students() {
                   setExpandedId((id) => (id === st.id_aluno ? null : st.id_aluno))
                 }
                 onRemove={() => remove(st.id_aluno)}
-                removing={busyId === st.id_aluno}
+                onPromote={() => promote(st)}
+                onBelt={(faixa) => changeBelt(st, faixa)}
+                busy={busyId === st.id_aluno}
               />
             ))}
           </div>

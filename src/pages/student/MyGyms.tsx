@@ -13,8 +13,16 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { SectionTitle } from '@/components/ui/SectionTitle'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useAuthStore } from '@/store/authStore'
 import { PREVIEW_MODE } from '@/lib/preview'
 import { DEMO_GYM } from '@/lib/demo'
+import { maskCnpj } from '@/lib/format'
+
+const VINCULO_LABEL: Record<string, string> = {
+  professor: 'Professor',
+  instrutor: 'Instrutor',
+  aluno: 'Aluno',
+}
 
 interface ActionCardProps {
   icon: typeof Building2
@@ -43,12 +51,13 @@ function ActionCard({ icon: Icon, title, subtitle, onClick }: ActionCardProps) {
 }
 
 /**
- * "Academias" tab for students. The backend has no list-my-gyms endpoint in the
- * authoritative map yet, so the list shows an empty state; quick actions reach
- * the presence and payment flows.
+ * "Academias" tab for students: lists the gyms the user belongs to (from
+ * GET /Users/Me → academias) plus quick actions to presence and payment.
  */
 export function MyGyms() {
   const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const academias = user?.academias ?? []
 
   return (
     <div className="flex flex-col">
@@ -80,25 +89,6 @@ export function MyGyms() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 border-t border-line pt-4">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                    Plano
-                  </p>
-                  <p className="text-sm font-semibold text-content">
-                    {DEMO_GYM.plan}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                    Presenças no mês
-                  </p>
-                  <p className="text-sm font-semibold text-content">
-                    {DEMO_GYM.attendanceMonth}
-                  </p>
-                </div>
-              </div>
-
               <button
                 onClick={() => navigate('/presence')}
                 className="flex items-center gap-2 rounded-2xl bg-primary-soft px-4 py-3 text-left text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
@@ -108,12 +98,49 @@ export function MyGyms() {
                 <ChevronRight size={16} className="ml-auto" />
               </button>
             </Card>
-          ) : (
+          ) : academias.length === 0 ? (
             <EmptyState
               icon={Building2}
               message="Você ainda não está em nenhuma academia."
               action={{ label: 'Inserir convite', onClick: () => navigate('/invite') }}
             />
+          ) : (
+            <div className="flex flex-col gap-3">
+              {academias.map((a) => (
+                <Card key={`${a.id}-${a.vinculo}`} className="flex flex-col gap-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ink text-white dark:bg-white/10">
+                      <Building2 size={22} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate font-display text-base font-bold uppercase tracking-tight text-content">
+                        {a.nome}
+                      </h3>
+                      <p className="truncate text-xs text-muted">
+                        {a.cnpj ? `CNPJ ${maskCnpj(a.cnpj)}` : '—'}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <Badge tone={a.vinculo === 'aluno' ? 'ink' : 'primary'}>
+                          {VINCULO_LABEL[a.vinculo] ?? a.vinculo}
+                        </Badge>
+                        {a.faixa && <Badge tone="soft">Faixa {a.faixa}</Badge>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {a.vinculo === 'aluno' && (
+                    <button
+                      onClick={() => navigate('/presence')}
+                      className="flex items-center gap-2 rounded-2xl bg-primary-soft px-4 py-3 text-left text-sm font-semibold text-primary transition-colors hover:bg-primary/15"
+                    >
+                      <CalendarCheck size={16} />
+                      Confirmar presença de hoje
+                      <ChevronRight size={16} className="ml-auto" />
+                    </button>
+                  )}
+                </Card>
+              ))}
+            </div>
           )}
         </section>
 

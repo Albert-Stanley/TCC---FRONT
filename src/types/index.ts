@@ -3,6 +3,17 @@
 
 export type Role = 'student' | 'teacher' | 'monitor'
 
+/** A gym the user belongs to, as returned in GET /Users/Me `academias`. */
+export interface GymLink {
+  id: string
+  nome: string
+  cnpj: string
+  /** Papel do usuário nesta academia. */
+  vinculo: 'professor' | 'instrutor' | 'aluno'
+  /** Graduação — presente apenas quando o vínculo é "aluno". */
+  faixa?: string
+}
+
 export interface User {
   id: string | number
   name?: string
@@ -13,6 +24,8 @@ export interface User {
   role: Role
   /** Graduação / faixa do aluno (vinda de GET /Users/Me). */
   faixa?: string
+  /** Academias a que o usuário pertence (GET /Users/Me). */
+  academias?: GymLink[]
 }
 
 /** Response returned by POST /Auth */

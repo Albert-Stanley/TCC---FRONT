@@ -1,22 +1,30 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarCheck,
   CreditCard,
   Navigation,
-  MapPin,
   Clock,
-  Flame,
+  Award,
   ChevronRight,
   LocateFixed,
   Building2,
   GraduationCap,
 } from 'lucide-react'
+import { api, asList } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { useNotificationStore } from '@/store/notificationStore'
+import { enrolledGym } from '@/lib/auth'
 import { PREVIEW_MODE } from '@/lib/preview'
 import { DEMO_GYM } from '@/lib/demo'
-import { openDirections, haversineMeters, formatDistance, useUserLocation } from '@/lib/geo'
+import { formatTime } from '@/lib/format'
+import {
+  openDirections,
+  haversineMeters,
+  formatDistance,
+  useUserLocation,
+  type LatLng,
+} from '@/lib/geo'
 import { Brand } from '@/components/ui/Brand'
 import { Logo } from '@/components/ui/Logo'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -75,22 +83,59 @@ interface StudentHomeProps {
 }
 
 /**
- * Wellhub-style student home: a single featured gym with one-tap check-in plus a
- * live map and "como chegar" directions. Centred on the athlete's own gym — no
- * multi-gym browsing — matching the reference mockup.
+ * Wellhub-style student home: the gym the athlete is enrolled in (from
+ * GET /Users/Me → academias) with one-tap check-in, the real gym location from
+ * GET /Gyms/Geolocation and today's next class from GET /Gyms/Classes/Day.
  */
 function StudentHome({ firstName, navigate }: StudentHomeProps) {
-  const gym = DEMO_GYM
-  const gymPoint = { lat: gym.lat, lng: gym.lng }
+  const user = useAuthStore((s) => s.user)
+  const enrolled = PREVIEW_MODE ? undefined : enrolledGym(user)
+
+  const [gymPoint, setGymPoint] = useState<LatLng | null>(
+    PREVIEW_MODE ? { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng } : null,
+  )
+  const [nextClass, setNextClass] = useState<string | null>(
+    PREVIEW_MODE ? DEMO_GYM.nextClass : null,
+  )
   const { coords, status, request } = useUserLocation()
 
+  const gymName = enrolled?.nome ?? DEMO_GYM.name
+  const faixa = enrolled?.faixa ?? user?.faixa
+
+  // Real gym anchor + today's classes (skipped while previewing or unenrolled).
+  useEffect(() => {
+    if (PREVIEW_MODE || !enrolled) return
+    api
+      .get('/Gyms/Geolocation')
+      .then(({ data }) => {
+        const lat = (data as { latitude?: number })?.latitude
+        const lng = (data as { longitude?: number })?.longitude
+        if (typeof lat === 'number' && typeof lng === 'number') {
+          setGymPoint({ lat, lng })
+        }
+      })
+      .catch(() => {})
+    api
+      .get('/Gyms/Classes/Day')
+      .then(({ data }) => {
+        const first = asList<{ data_aula?: string }>(data)[0]
+        const time = formatTime(first?.data_aula)
+        if (time) setNextClass(`Hoje, ${time}`)
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enrolled?.id])
+
   const distance = useMemo(
-    () => (coords ? formatDistance(haversineMeters(coords, gymPoint)) : null),
+    () =>
+      coords && gymPoint
+        ? formatDistance(haversineMeters(coords, gymPoint))
+        : null,
     [coords, gymPoint],
   )
 
   // Not enrolled in any gym yet → guide the student to a join link.
-  if (!PREVIEW_MODE) {
+  if (!PREVIEW_MODE && !enrolled) {
     return (
       <div className="flex flex-col">
         <TopBar />
@@ -123,15 +168,17 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
             <Logo size={56} rounded="rounded-2xl" />
             <div className="min-w-0">
               <h2 className="truncate font-display text-lg font-extrabold uppercase tracking-tight text-content">
-                {gym.name}
+                {gymName}
               </h2>
-              <p className="truncate text-sm text-muted">{gym.modality}</p>
+              <p className="truncate text-sm text-muted">
+                Krav Maga · Defesa Pessoal
+              </p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5">
-            <Stat icon={Clock} label="Próxima aula" value={gym.nextClass} />
-            <Stat icon={Flame} label="Presenças no mês" value={String(gym.attendanceMonth)} />
+            <Stat icon={Clock} label="Próxima aula" value={nextClass ?? 'Sem aulas hoje'} />
+            <Stat icon={Award} label="Sua faixa" value={faixa ? `Faixa ${faixa}` : '—'} />
           </div>
 
           <Button onClick={() => navigate('/presence')}>
@@ -139,51 +186,44 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
           </Button>
         </Card>
 
-        {/* Map + directions to the athlete's own gym */}
-        <section className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <SectionTitle underline>Como chegar</SectionTitle>
-            {distance && (
-              <span className="text-xs font-semibold text-muted">{distance} de você</span>
+        {/* Map + directions to the athlete's own gym (when it has a location) */}
+        {gymPoint && (
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <SectionTitle underline>Como chegar</SectionTitle>
+              {distance && (
+                <span className="text-xs font-semibold text-muted">{distance} de você</span>
+              )}
+            </div>
+
+            <MapView
+              point={gymPoint}
+              label={gymName}
+              distance={distance ?? undefined}
+              onOpen={() => openDirections(gymPoint)}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button onClick={() => openDirections(gymPoint)}>
+                <Navigation size={17} /> Traçar rota
+              </Button>
+              <Button
+                variant="secondary"
+                loading={status === 'loading'}
+                onClick={request}
+              >
+                <LocateFixed size={17} />
+                {status === 'granted' ? 'Atualizar' : 'Minha distância'}
+              </Button>
+            </div>
+
+            {status === 'denied' && (
+              <p className="px-1 text-xs text-muted">
+                Não foi possível acessar sua localização. Você ainda pode traçar a rota no mapa.
+              </p>
             )}
-          </div>
-
-          <MapView
-            point={gymPoint}
-            label={gym.name}
-            distance={distance ?? undefined}
-            onOpen={() => openDirections(gymPoint)}
-          />
-
-          <div className="flex items-start gap-2.5 px-1 text-sm">
-            <MapPin size={16} className="mt-0.5 shrink-0 text-primary" />
-            <p className="text-muted">
-              <span className="font-semibold text-content">{gym.address}</span>
-              <br />
-              {gym.city}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Button onClick={() => openDirections(gymPoint)}>
-              <Navigation size={17} /> Traçar rota
-            </Button>
-            <Button
-              variant="secondary"
-              loading={status === 'loading'}
-              onClick={request}
-            >
-              <LocateFixed size={17} />
-              {status === 'granted' ? 'Atualizar' : 'Minha distância'}
-            </Button>
-          </div>
-
-          {status === 'denied' && (
-            <p className="px-1 text-xs text-muted">
-              Não foi possível acessar sua localização. Você ainda pode traçar a rota no mapa.
-            </p>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Quick actions */}
         <section className="flex flex-col gap-3">
@@ -197,7 +237,7 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
           <QuickAction
             icon={CreditCard}
             title="Mensalidade"
-            subtitle="Pague pela Abacate Pay."
+            subtitle="Pague com segurança pela Stripe."
             onClick={() => navigate('/payment')}
           />
           <QuickAction

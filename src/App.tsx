@@ -12,6 +12,7 @@ import { NavLayout } from '@/components/layout/NavLayout'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
 import { Login } from '@/pages/Login'
 import { Register } from '@/pages/Register'
+import { ForgotPassword } from '@/pages/ForgotPassword'
 import { Home } from '@/pages/Home'
 import { Profile } from '@/pages/Profile'
 import { MyGyms } from '@/pages/student/MyGyms'
@@ -120,6 +121,7 @@ export function App() {
           {/* Public */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
 
           {/* Authenticated (with bottom navigation) */}
           <Route element={<ProtectedRoute />}>
