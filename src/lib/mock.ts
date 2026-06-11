@@ -105,7 +105,7 @@ export async function mockAdapter(
     return R({ ok: true, registeredAt: new Date().toISOString() })
   if (url === '/Student/Payment' && method === 'post')
     return R({
-      url: 'https://pay.abacatepay.com/checkout/demo-kravconnect',
+      id_pagamento: 'pi_demo_kravconnect',
       amount: 14990,
     })
 

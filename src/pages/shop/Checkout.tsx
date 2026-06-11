@@ -103,7 +103,7 @@ export function Checkout() {
       status: 'paid',
     }
     try {
-      // Simulate the Abacate Pay round-trip, then record the order + email it.
+      // Simulate the Stripe round-trip, then record the order + email it.
       await new Promise((r) => setTimeout(r, 1100))
       await placeOrder(newOrder)
       clear()
@@ -248,7 +248,7 @@ export function Checkout() {
               </div>
 
               <Badge tone="soft" className="self-start">
-                Pagamento seguro · Abacate Pay
+                Pagamento seguro · Stripe
               </Badge>
 
               {error && <FormError>{error}</FormError>}

@@ -54,7 +54,6 @@ export function Register() {
   const setUser = useAuthStore((s) => s.setUser)
 
   const [step, setStep] = useState<1 | 2>(1)
-  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -82,6 +81,12 @@ export function Register() {
     event.preventDefault()
     setError(null)
 
+    // Mirrors the backend rule (DominioEmailValido) to fail fast with a
+    // friendlier message than the server's.
+    if (!/@(gmail|hotmail|outlook)\./i.test(email)) {
+      setError('Use um e-mail Gmail, Hotmail ou Outlook.')
+      return
+    }
     if (onlyDigits(cpf).length !== 11) {
       setError('Informe um CPF válido (11 dígitos).')
       return
@@ -153,15 +158,6 @@ export function Register() {
         {step === 1 ? (
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
             <Input
-              name="name"
-              label="Nome completo"
-              placeholder="Seu nome"
-              autoComplete="name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <Input
               name="email"
               type="email"
               label="E-mail"
@@ -220,7 +216,8 @@ export function Register() {
             </div>
 
             <InfoNote>
-              Usaremos seu CPF e CEP para validar seu cadastro na academia.
+              Seu nome e seus dados pessoais são preenchidos automaticamente a
+              partir do CPF. Use um e-mail Gmail, Hotmail ou Outlook.
             </InfoNote>
 
             {error && <FormError>{error}</FormError>}

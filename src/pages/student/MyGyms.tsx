@@ -162,7 +162,7 @@ export function MyGyms() {
             <ActionCard
               icon={CreditCard}
               title="Mensalidade"
-              subtitle="Pague sua mensalidade pela Abacate Pay."
+              subtitle="Pague sua mensalidade com segurança pela Stripe."
               onClick={() => navigate('/payment')}
             />
             <ActionCard

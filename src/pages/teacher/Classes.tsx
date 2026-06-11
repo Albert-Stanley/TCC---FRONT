@@ -33,10 +33,14 @@ export function Classes() {
   const [faixa, setFaixa] = useState('Branca')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Optional AAAA-MM-DD filter passed as ?data= to GET /Gyms/Classes. */
+  const [filterDate, setFilterDate] = useState('')
 
-  async function load() {
+  async function load(date = filterDate) {
     try {
-      const { data } = await api.get('/Gyms/Classes')
+      const { data } = await api.get('/Gyms/Classes', {
+        params: date ? { data: date } : undefined,
+      })
       setAulas(asList<Aula>(data))
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível carregar as aulas.'))
@@ -44,9 +48,9 @@ export function Classes() {
   }
 
   useEffect(() => {
-    void load()
+    void load(filterDate)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [filterDate])
 
   async function createClass(e: FormEvent) {
     e.preventDefault()
@@ -130,6 +134,28 @@ export function Classes() {
         <div className="flex items-center justify-between">
           <SectionTitle>Aulas da academia</SectionTitle>
           <Badge tone="soft">{aulas.length}</Badge>
+        </div>
+
+        {/* Date filter (server-side via ?data=AAAA-MM-DD) */}
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Input
+              name="filterDate"
+              type="date"
+              label="Filtrar por data"
+              value={filterDate}
+              onChange={(e) => setFilterDate(e.target.value)}
+            />
+          </div>
+          {filterDate && (
+            <button
+              type="button"
+              onClick={() => setFilterDate('')}
+              className="h-13 shrink-0 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-muted transition-colors hover:text-content"
+            >
+              Limpar
+            </button>
+          )}
         </div>
 
         {aulas.length === 0 ? (

@@ -23,7 +23,7 @@ import { formatBRL } from '@/lib/format'
 
 const PERKS = [
   { icon: Truck, text: 'Envio para todo o Brasil' },
-  { icon: ShieldCheck, text: 'Pagamento seguro via Abacate Pay' },
+  { icon: ShieldCheck, text: 'Pagamento seguro via Stripe' },
   { icon: RefreshCw, text: 'Troca grátis em até 7 dias' },
 ]
 
