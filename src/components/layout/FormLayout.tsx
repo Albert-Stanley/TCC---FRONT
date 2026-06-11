@@ -29,11 +29,14 @@ export function FormLayout({ children, aside }: FormLayoutProps) {
 
   return (
     <div className="px-6 py-6 lg:py-10">
-      <div className="mx-auto grid w-full max-w-4xl items-start gap-6 lg:grid-cols-2 lg:gap-12">
-        <aside className="order-first flex flex-col gap-4 lg:order-last">
+      {/* grid-cols-1 (minmax(0,1fr)) lets the columns shrink below their
+          content's intrinsic width on mobile — otherwise long unbreakable
+          content (e-mails, codes) pushes the cards wider than the screen. */}
+      <div className="mx-auto grid w-full max-w-4xl grid-cols-1 items-start gap-6 lg:grid-cols-2 lg:gap-12">
+        <aside className="order-first flex min-w-0 flex-col gap-4 lg:order-last">
           {aside}
         </aside>
-        <div className="flex flex-col gap-5">{children}</div>
+        <div className="flex min-w-0 flex-col gap-5">{children}</div>
       </div>
     </div>
   )
