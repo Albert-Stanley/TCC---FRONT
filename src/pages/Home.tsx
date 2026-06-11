@@ -23,7 +23,7 @@ import {
   haversineMeters,
   formatDistance,
   useUserLocation,
-  type LatLng,
+  useGymLocation,
 } from '@/lib/geo'
 import { Brand } from '@/components/ui/Brand'
 import { Logo } from '@/components/ui/Logo'
@@ -90,9 +90,12 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
   const user = useAuthStore((s) => s.user)
   const enrolled = PREVIEW_MODE ? undefined : enrolledGym(user)
 
-  const [gymPoint, setGymPoint] = useState<LatLng | null>(
-    PREVIEW_MODE ? { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng } : null,
-  )
+  // Real gym anchor from GET /Gyms/Geolocation (registered by the teacher via
+  // PUT /Gyms/Location); skipped while previewing or unenrolled.
+  const registeredPoint = useGymLocation(!PREVIEW_MODE && Boolean(enrolled))
+  const gymPoint = PREVIEW_MODE
+    ? { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
+    : registeredPoint
   const [nextClass, setNextClass] = useState<string | null>(
     PREVIEW_MODE ? DEMO_GYM.nextClass : null,
   )
@@ -101,19 +104,9 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
   const gymName = enrolled?.nome ?? DEMO_GYM.name
   const faixa = enrolled?.faixa ?? user?.faixa
 
-  // Real gym anchor + today's classes (skipped while previewing or unenrolled).
+  // Today's classes (skipped while previewing or unenrolled).
   useEffect(() => {
     if (PREVIEW_MODE || !enrolled) return
-    api
-      .get('/Gyms/Geolocation')
-      .then(({ data }) => {
-        const lat = (data as { latitude?: number })?.latitude
-        const lng = (data as { longitude?: number })?.longitude
-        if (typeof lat === 'number' && typeof lng === 'number') {
-          setGymPoint({ lat, lng })
-        }
-      })
-      .catch(() => {})
     api
       .get('/Gyms/Classes/Day')
       .then(({ data }) => {

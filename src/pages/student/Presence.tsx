@@ -30,6 +30,7 @@ import {
   haversineMeters,
   formatDistance,
   CHECKIN_RADIUS_M,
+  useGymLocation,
   type LatLng,
 } from '@/lib/geo'
 
@@ -74,24 +75,15 @@ export function Presence() {
   const [done, setDone] = useState(false)
   const [geo, setGeo] = useState<GeoState>({ status: 'checking' })
 
-  const [gymPoint, setGymPoint] = useState<LatLng | null>(null)
+  // Geofence anchor from GET /Gyms/Geolocation (registered by the teacher via
+  // PUT /Gyms/Location).
+  const gymPoint = useGymLocation()
   const [aulas, setAulas] = useState<Aula[]>([])
   const [selectedAula, setSelectedAula] = useState<string>('')
   const [coords, setCoords] = useState<LatLng | null>(null)
 
-  // Load gym location (geofence anchor) + today's classes.
+  // Load today's classes.
   useEffect(() => {
-    api
-      .get('/Gyms/Geolocation')
-      .then(({ data }) => {
-        const lat = (data as { latitude?: number })?.latitude
-        const lng = (data as { longitude?: number })?.longitude
-        if (typeof lat === 'number' && typeof lng === 'number') {
-          setGymPoint({ lat, lng })
-        }
-      })
-      .catch(() => {})
-
     api
       .get('/Gyms/Classes/Day')
       .then(({ data }) => {

@@ -27,7 +27,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { maskCpf, maskCnpj, formatDate } from '@/lib/format'
 import { DEMO_GYM } from '@/lib/demo'
-import { openDirections } from '@/lib/geo'
+import { openDirections, useGymLocation } from '@/lib/geo'
 import type { Student } from '@/types'
 
 const BELTS = ['Branca', 'Amarela', 'Laranja', 'Verde', 'Azul', 'Marrom', 'Preta']
@@ -336,10 +336,14 @@ export function Students() {
     )
   }
 
+  // Authoritative location from GET /Gyms/Geolocation (registered via
+  // PUT /Gyms/Location); falls back to the locally cached gym, then demo.
+  const registeredPoint = useGymLocation()
   const gymPoint =
-    gym?.lat != null && gym?.lng != null
+    registeredPoint ??
+    (gym?.lat != null && gym?.lng != null
       ? { lat: gym.lat, lng: gym.lng }
-      : { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng }
+      : { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng })
   const gymAddress = gym?.address ?? DEMO_GYM.address
 
   return (

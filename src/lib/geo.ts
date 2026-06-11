@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { api } from '@/lib/api'
 
 /** A geographic point. */
 export interface LatLng {
@@ -184,6 +185,35 @@ export async function geocodeAddress(
   // 2) Free-form fallback.
   const free = [streetLine, district, city, uf, 'Brasil'].filter(Boolean).join(', ')
   return free ? fetchNominatim({ q: free }) : null
+}
+
+/**
+ * The gym's registered location (set by the teacher via PUT /Gyms/Location).
+ * Fetches GET /Gyms/Geolocation once and returns the point, or null while
+ * loading / when the gym has no location yet (the backend answers 400).
+ */
+export function useGymLocation(enabled = true): LatLng | null {
+  const [point, setPoint] = useState<LatLng | null>(null)
+
+  useEffect(() => {
+    if (!enabled) return
+    let active = true
+    api
+      .get('/Gyms/Geolocation')
+      .then(({ data }) => {
+        const lat = (data as { latitude?: number })?.latitude
+        const lng = (data as { longitude?: number })?.longitude
+        if (active && typeof lat === 'number' && typeof lng === 'number') {
+          setPoint({ lat, lng })
+        }
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [enabled])
+
+  return point
 }
 
 type GeoStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'unsupported'
