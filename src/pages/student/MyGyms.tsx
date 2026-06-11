@@ -99,11 +99,19 @@ export function MyGyms() {
               </button>
             </Card>
           ) : academias.length === 0 ? (
-            <EmptyState
-              icon={Building2}
-              message="Você ainda não está em nenhuma academia."
-              action={{ label: 'Inserir convite', onClick: () => navigate('/invite') }}
-            />
+            <div className="flex flex-col gap-3">
+              <EmptyState
+                icon={Building2}
+                message="Você ainda não está em nenhuma academia."
+                action={{ label: 'Inserir convite', onClick: () => navigate('/invite') }}
+              />
+              <button
+                onClick={() => navigate('/gyms/new')}
+                className="text-center text-sm font-semibold text-primary"
+              >
+                Sou professor — criar minha academia
+              </button>
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
               {academias.map((a) => (

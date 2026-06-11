@@ -33,7 +33,6 @@ import { MapView } from '@/components/ui/MapView'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { SectionTitle } from '@/components/ui/SectionTitle'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { TeacherHome } from '@/pages/teacher/TeacherHome'
 
 const todayLine = new Date().toLocaleDateString('pt-BR', {
@@ -134,21 +133,10 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
     [coords, gymPoint],
   )
 
-  // Not enrolled in any gym yet → guide the student to a join link.
-  if (!PREVIEW_MODE && !enrolled) {
-    return (
-      <div className="flex flex-col">
-        <TopBar />
-        <div className="flex flex-col gap-5 px-5 pb-6 pt-2">
-          <Greeting firstName={firstName} />
-          <EmptyState
-            icon={Building2}
-            message="Você ainda não está em nenhuma academia."
-            action={{ label: 'Inserir convite', onClick: () => navigate('/invite') }}
-          />
-        </div>
-      </div>
-    )
+  // No gym yet (GET /Users/Me → academias vazio) → onboarding: the user picks
+  // between creating a gym (becomes the teacher) or joining one via invite.
+  if (!PREVIEW_MODE && (user?.academias?.length ?? 0) === 0) {
+    return <Onboarding firstName={firstName} navigate={navigate} />
   }
 
   return (
@@ -247,6 +235,98 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
             onClick={() => navigate('/invite')}
           />
         </section>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * First-session screen for accounts with no gym: choose between creating an
+ * academy (the user becomes its teacher via POST /Gyms/Creation) or joining
+ * one as a student with an invite code.
+ */
+function Onboarding({ firstName, navigate }: StudentHomeProps) {
+  const OPTIONS = [
+    {
+      icon: GraduationCap,
+      title: 'Sou professor',
+      text: 'Crie sua academia, gere convites e gerencie alunos, faixas e aulas.',
+      cta: 'Criar minha academia',
+      to: '/gyms/new',
+      featured: true,
+    },
+    {
+      icon: Building2,
+      title: 'Sou aluno',
+      text: 'Recebeu um convite do seu professor? Use o link ou código para entrar.',
+      cta: 'Inserir convite',
+      to: '/invite',
+      featured: false,
+    },
+  ]
+
+  return (
+    <div className="flex flex-col">
+      <TopBar />
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 pb-10 pt-2">
+        <div>
+          <p className="text-sm font-medium capitalize text-muted">{todayLine}</p>
+          <h1 className="mt-1 font-display text-[26px] font-extrabold leading-tight tracking-tight text-content">
+            Bem-vindo, {firstName}! 👊
+          </h1>
+          <p className="mt-2 text-sm text-muted">
+            Para começar, escolha como você vai usar o KravConnect.
+          </p>
+        </div>
+
+        <div className="grid items-stretch gap-4 sm:grid-cols-2">
+          {OPTIONS.map(({ icon: Icon, title, text, cta, to, featured }) => (
+            <button
+              key={to}
+              onClick={() => navigate(to)}
+              className="group flex w-full flex-col text-left"
+            >
+              <Card
+                interactive
+                className="flex flex-1 flex-col gap-4 p-5"
+              >
+                <span
+                  className={`flex h-13 w-13 items-center justify-center rounded-2xl ${
+                    featured
+                      ? 'bg-primary text-white shadow-primary'
+                      : 'bg-ink text-white dark:bg-white/10'
+                  }`}
+                >
+                  <Icon size={24} />
+                </span>
+                <div className="flex-1">
+                  <h2 className="font-display text-lg font-extrabold uppercase tracking-tight text-content">
+                    {title}
+                  </h2>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted">
+                    {text}
+                  </p>
+                </div>
+                <span
+                  className={`flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide ${
+                    featured ? 'text-primary' : 'text-content'
+                  }`}
+                >
+                  {cta}
+                  <ChevronRight
+                    size={17}
+                    className="transition-transform group-hover:translate-x-0.5"
+                  />
+                </span>
+              </Card>
+            </button>
+          ))}
+        </div>
+
+        <p className="px-1 text-center text-xs text-muted">
+          Criou a academia? Você se torna o professor responsável por ela.
+          Entrou com convite? Seu pedido vai para a aprovação do professor.
+        </p>
       </div>
     </div>
   )
