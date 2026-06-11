@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { useProductsStore } from '@/store/productsStore'
+import { getErrorMessage } from '@/lib/api'
 import { listProducts, saveProduct, deleteProduct } from '@/lib/shopApi'
 import {
   CATEGORIES,
@@ -83,6 +84,9 @@ export function ManageProducts() {
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<keyof FormState, string>>
+  >({})
   const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
 
@@ -99,31 +103,80 @@ export function ManageProducts() {
     setForm(EMPTY_FORM)
     setEditingId('new')
     setError(null)
+    setFieldErrors({})
   }
   function openEdit(p: Product) {
     setForm(productToForm(p))
     setEditingId(p.id)
     setError(null)
+    setFieldErrors({})
   }
   function close() {
     setEditingId(null)
     setError(null)
+    setFieldErrors({})
   }
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }))
+    setFieldErrors((e) => (e[key] ? { ...e, [key]: undefined } : e))
+  }
+
+  /** Mirrors the backend rules (CriarProdutoDTO): nome ≤100, preço ≤5000,
+   *  quantidade 1–20, tamanho (joined) ≤20, imagem_url opcional/válida ≤500. */
+  function validate(): Partial<Record<keyof FormState, string>> {
+    const errors: Partial<Record<keyof FormState, string>> = {}
+
+    const name = form.name.trim()
+    if (!name) errors.name = 'Informe o nome do equipamento.'
+    else if (name.length > 100)
+      errors.name = 'O nome pode ter no máximo 100 caracteres.'
+
+    const priceCents = reaisToCents(form.price)
+    if (!form.price.trim() || priceCents <= 0)
+      errors.price = 'Informe um preço maior que zero.'
+    else if (priceCents > 5000 * 100)
+      errors.price = 'O preço máximo é R$ 5.000,00.'
+
+    const stock = Number(form.stock)
+    if (!form.stock.trim() || !Number.isInteger(stock) || stock < 1 || stock > 20)
+      errors.stock = 'Informe uma quantidade inteira entre 1 e 20.'
+
+    const image = form.image.trim()
+    if (image) {
+      let valid = false
+      try {
+        const url = new URL(image)
+        valid = url.protocol === 'http:' || url.protocol === 'https:'
+      } catch {
+        valid = false
+      }
+      if (!valid)
+        errors.image = 'Informe uma URL válida começando com http:// ou https://.'
+      else if (image.length > 500)
+        errors.image = 'A URL da imagem pode ter no máximo 500 caracteres.'
+    }
+
+    const joinedSizes = form.sizes
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join('/')
+    if (joinedSizes.length > 20)
+      errors.sizes =
+        'Os tamanhos somados podem ter no máximo 20 caracteres (ex.: P, M, G, GG).'
+
+    return errors
   }
 
   async function submit() {
     setError(null)
+    const errors = validate()
+    setFieldErrors(errors)
+    if (Object.values(errors).some(Boolean)) {
+      setError('Corrija os campos destacados antes de salvar.')
+      return
+    }
     const priceCents = reaisToCents(form.price)
-    if (!form.name.trim()) {
-      setError('Informe o nome do equipamento.')
-      return
-    }
-    if (priceCents <= 0) {
-      setError('Informe um preço válido.')
-      return
-    }
 
     const sizes = form.sizes
       .split(',')
@@ -137,7 +190,7 @@ export function ManageProducts() {
       name: form.name.trim(),
       category: form.category,
       priceCents,
-      stock: Math.min(Math.max(Number(form.stock) || 1, 1), 20),
+      stock: Number(form.stock),
       image: form.image.trim() || undefined,
       emoji: form.emoji.trim() || '🥋',
       description: form.description.trim(),
@@ -152,8 +205,8 @@ export function ManageProducts() {
     try {
       await saveProduct(product)
       close()
-    } catch {
-      setError('Não foi possível salvar. Tente novamente.')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Não foi possível salvar. Tente novamente.'))
     } finally {
       setSaving(false)
     }
@@ -197,6 +250,8 @@ export function ManageProducts() {
               value={form.name}
               onChange={(e) => update('name', e.target.value)}
               placeholder="Ex.: Luva de Boxe 14oz"
+              maxLength={100}
+              error={fieldErrors.name}
             />
 
             <div className="grid grid-cols-2 gap-3">
@@ -225,6 +280,7 @@ export function ManageProducts() {
                 inputMode="decimal"
                 placeholder="0,00"
                 leftSlot={<span className="text-sm font-semibold">R$</span>}
+                error={fieldErrors.price}
               />
             </div>
 
@@ -234,6 +290,7 @@ export function ManageProducts() {
               onChange={(e) => update('stock', e.target.value)}
               inputMode="numeric"
               placeholder="1"
+              error={fieldErrors.stock}
             />
 
             <div>
@@ -242,6 +299,8 @@ export function ManageProducts() {
                 value={form.image}
                 onChange={(e) => update('image', e.target.value)}
                 placeholder="https://.../foto.jpg"
+                maxLength={500}
+                error={fieldErrors.image}
               />
               {form.image.trim() && (
                 <img
@@ -273,6 +332,7 @@ export function ManageProducts() {
               value={form.sizes}
               onChange={(e) => update('sizes', e.target.value)}
               placeholder="Ex.: P, M, G, GG"
+              error={fieldErrors.sizes}
             />
 
             <div>

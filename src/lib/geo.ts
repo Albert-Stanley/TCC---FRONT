@@ -144,6 +144,39 @@ async function fetchNominatim(params: Record<string, string>): Promise<LatLng | 
   }
 }
 
+/**
+ * Reverse-geocodes a point into the display strings used by the gym cards
+ * ("Rua, 123 — Bairro" / "Cidade · UF") via Nominatim. Null on failure.
+ */
+export async function reverseGeocode(
+  point: LatLng,
+): Promise<{ address?: string; city?: string } | null> {
+  const qs = new URLSearchParams({
+    format: 'json',
+    lat: String(point.lat),
+    lon: String(point.lng),
+  })
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?${qs.toString()}`,
+      { headers: { Accept: 'application/json' } },
+    )
+    if (!res.ok) return null
+    const d = await res.json()
+    const a = (d?.address ?? {}) as Record<string, string>
+    const street = [a.road, a.house_number].filter(Boolean).join(', ')
+    const district = a.suburb ?? a.neighbourhood ?? a.quarter
+    const cityName = a.city ?? a.town ?? a.village ?? a.municipality
+    const uf = (a['ISO3166-2-lvl4'] ?? '').split('-')[1]
+    const address =
+      [street, district].filter(Boolean).join(' — ') || undefined
+    const city = [cityName, uf].filter(Boolean).join(' · ') || undefined
+    return address || city ? { address, city } : null
+  } catch {
+    return null
+  }
+}
+
 /** Structured address parts for geocoding (more reliable than free-form). */
 export interface AddressParts {
   street?: string

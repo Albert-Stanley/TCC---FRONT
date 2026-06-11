@@ -36,6 +36,7 @@ import {
   useGymLocation,
   getCurrentPosition,
   geocodeAddress,
+  reverseGeocode,
   type LatLng,
 } from '@/lib/geo'
 import type { Student } from '@/types'
@@ -360,9 +361,21 @@ export function Students() {
       : { lat: DEMO_GYM.lat, lng: DEMO_GYM.lng })
   const gymAddress = gym?.address ?? DEMO_GYM.address
 
-  function handleLocationSaved(point: LatLng) {
+  async function handleLocationSaved(point: LatLng) {
     setSavedPoint(point)
-    if (gym) setGym({ ...gym, lat: point.lat, lng: point.lng })
+    const base = useGymStore.getState().gym ?? { id: 'minha-academia' }
+    setGym({ ...base, lat: point.lat, lng: point.lng })
+    // Keep the address text in sync with the new pin.
+    const place = await reverseGeocode(point)
+    if (!place) return
+    const current = useGymStore.getState().gym ?? base
+    setGym({
+      ...current,
+      lat: point.lat,
+      lng: point.lng,
+      address: place.address ?? current.address,
+      city: place.city ?? current.city,
+    })
   }
 
   return (
