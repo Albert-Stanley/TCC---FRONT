@@ -2,9 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { api, getErrorMessage } from '@/lib/api'
+import { AuthLayout } from '@/components/layout/AuthLayout'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { Header } from '@/components/layout/Header'
 import { InfoNote } from '@/components/ui/InfoNote'
 import { FormError } from '@/components/ui/FormError'
 import { onlyDigits } from '@/lib/format'
@@ -59,121 +59,35 @@ export function ForgotPassword() {
 
   if (done) {
     return (
-      <div className="flex min-h-full flex-1 flex-col bg-surface">
-        <Header title="KRAVCONNECT" backTo="/login" />
-        <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center px-6 py-12 text-center">
+      <AuthLayout
+        title="Senha redefinida!"
+        subtitle="Sua nova senha já está valendo. Entre novamente para continuar."
+      >
+        <div className="flex flex-col items-center gap-8">
           <span className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600">
             <CheckCircle2 size={38} />
           </span>
-          <h1 className="mt-5 font-display text-2xl font-extrabold uppercase tracking-tight text-content">
-            Senha redefinida!
-          </h1>
-          <p className="mt-2 text-sm text-muted">
-            Sua nova senha já está valendo. Entre novamente para continuar.
-          </p>
-          <div className="mt-8 w-full">
-            <Button onClick={() => navigate('/login', { replace: true })}>
-              Ir para o login
-            </Button>
-          </div>
+          <Button
+            className="w-full"
+            onClick={() => navigate('/login', { replace: true })}
+          >
+            Ir para o login
+          </Button>
         </div>
-      </div>
+      </AuthLayout>
     )
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-surface">
-      <Header title="KRAVCONNECT" backTo="/login" />
-
-      <div className="flex flex-1 flex-col px-6 py-8">
-        <header className="mb-7">
-          <h1 className="font-display text-2xl font-extrabold uppercase tracking-tight text-content">
-            {step === 1 ? 'Esqueci minha senha' : 'Redefinir senha'}
-          </h1>
-          <p className="mt-1.5 text-sm text-muted">
-            {step === 1
-              ? 'Informe o e-mail da sua conta para receber o código.'
-              : 'Digite o código recebido por e-mail e escolha a nova senha.'}
-          </p>
-        </header>
-
-        {step === 1 ? (
-          <form onSubmit={handleRequest} className="flex flex-col gap-5">
-            <Input
-              name="email"
-              type="email"
-              label="E-mail"
-              placeholder="seu@email.com"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-
-            {error && <FormError>{error}</FormError>}
-
-            <Button type="submit" loading={loading} className="mt-1">
-              Enviar código
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={handleReset} className="flex flex-col gap-5">
-            <Input
-              name="code"
-              label="Código de verificação"
-              placeholder="000000"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              required
-              value={code}
-              onChange={(e) => setCode(onlyDigits(e.target.value))}
-            />
-            <Input
-              name="password"
-              type={showPassword ? 'text' : 'password'}
-              label="Nova senha"
-              placeholder="••••••••"
-              autoComplete="new-password"
-              minLength={6}
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              rightSlot={
-                <button
-                  type="button"
-                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="flex items-center"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              }
-            />
-
-            <InfoNote>
-              O código foi enviado para <strong>{email}</strong>. Verifique
-              também a caixa de spam.
-            </InfoNote>
-
-            {error && <FormError>{error}</FormError>}
-
-            <Button type="submit" loading={loading} className="mt-1">
-              Redefinir senha
-            </Button>
-            <button
-              type="button"
-              onClick={() => {
-                setError(null)
-                setStep(1)
-              }}
-              className="text-center text-sm font-medium text-muted"
-            >
-              Reenviar código
-            </button>
-          </form>
-        )}
-
-        <p className="mt-auto pt-8 text-center text-sm text-muted">
+    <AuthLayout
+      title={step === 1 ? 'Esqueci minha senha' : 'Redefinir senha'}
+      subtitle={
+        step === 1
+          ? 'Informe o e-mail da sua conta para receber o código.'
+          : 'Digite o código recebido por e-mail e escolha a nova senha.'
+      }
+      footer={
+        <>
           Lembrou a senha?{' '}
           <Link
             to="/login"
@@ -181,8 +95,84 @@ export function ForgotPassword() {
           >
             Entrar
           </Link>
-        </p>
-      </div>
-    </div>
+        </>
+      }
+    >
+      {step === 1 ? (
+        <form onSubmit={handleRequest} className="flex flex-col gap-5">
+          <Input
+            name="email"
+            type="email"
+            label="E-mail"
+            placeholder="seu@email.com"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          {error && <FormError>{error}</FormError>}
+
+          <Button type="submit" loading={loading} className="mt-1">
+            Enviar código
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handleReset} className="flex flex-col gap-5">
+          <Input
+            name="code"
+            label="Código de verificação"
+            placeholder="000000"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            required
+            value={code}
+            onChange={(e) => setCode(onlyDigits(e.target.value))}
+          />
+          <Input
+            name="password"
+            type={showPassword ? 'text' : 'password'}
+            label="Nova senha"
+            placeholder="••••••••"
+            autoComplete="new-password"
+            minLength={6}
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            rightSlot={
+              <button
+                type="button"
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                onClick={() => setShowPassword((v) => !v)}
+                className="flex items-center"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            }
+          />
+
+          <InfoNote>
+            O código foi enviado para <strong>{email}</strong>. Verifique
+            também a caixa de spam.
+          </InfoNote>
+
+          {error && <FormError>{error}</FormError>}
+
+          <Button type="submit" loading={loading} className="mt-1">
+            Redefinir senha
+          </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setError(null)
+              setStep(1)
+            }}
+            className="text-center text-sm font-medium text-muted"
+          >
+            Reenviar código
+          </button>
+        </form>
+      )}
+    </AuthLayout>
   )
 }

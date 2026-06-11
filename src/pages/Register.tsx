@@ -6,7 +6,7 @@ import { useAuthStore } from '@/store/authStore'
 import { fetchProfile } from '@/lib/auth'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { Header } from '@/components/layout/Header'
+import { AuthLayout } from '@/components/layout/AuthLayout'
 import { InfoNote } from '@/components/ui/InfoNote'
 import { FormError } from '@/components/ui/FormError'
 import { maskCep, maskCpf, onlyDigits } from '@/lib/format'
@@ -138,21 +138,26 @@ export function Register() {
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-surface">
-      <Header title="KRAVCONNECT" backTo="/login" />
-
-      <div className="flex flex-1 flex-col px-6 py-8">
-        <header className="mb-7">
-          <h1 className="font-display text-2xl font-extrabold uppercase tracking-tight text-content">
-            {step === 1 ? 'Crie sua conta' : 'Confirme seu e-mail'}
-          </h1>
-          <p className="mt-1.5 text-sm text-muted">
-            {step === 1
-              ? 'Preencha seus dados para começar.'
-              : 'Enviamos um código de 6 dígitos para o seu e-mail.'}
-          </p>
-        </header>
-
+    <AuthLayout
+      title={step === 1 ? 'Crie sua conta' : 'Confirme seu e-mail'}
+      subtitle={
+        step === 1
+          ? 'Preencha seus dados para começar.'
+          : 'Enviamos um código de 6 dígitos para o seu e-mail.'
+      }
+      footer={
+        <>
+          Já tem conta?{' '}
+          <Link
+            to="/login"
+            className="font-bold uppercase tracking-wide text-primary"
+          >
+            Entrar
+          </Link>
+        </>
+      }
+    >
+      <>
         <Stepper current={step} />
 
         {step === 1 ? (
@@ -261,17 +266,7 @@ export function Register() {
             </button>
           </form>
         )}
-
-        <p className="mt-auto pt-8 text-center text-sm text-muted">
-          Já tem conta?{' '}
-          <Link
-            to="/login"
-            className="font-bold uppercase tracking-wide text-primary"
-          >
-            Entrar
-          </Link>
-        </p>
-      </div>
-    </div>
+      </>
+    </AuthLayout>
   )
 }
