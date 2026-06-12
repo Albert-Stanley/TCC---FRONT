@@ -133,6 +133,8 @@ export function App() {
               <Route path="/aulas" element={<StudentClasses />} />
               {/* Shared */}
               <Route path="/store" element={<Store />} />
+              {/* Loja de uma academia específica (gym id na URL) */}
+              <Route path="/store/:gymId" element={<Store />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
 
@@ -148,8 +150,10 @@ export function App() {
               <Route path="/classes" element={<Classes />} />
             </Route>
 
-            {/* Shop — full-screen flow (no bottom nav), available to any user */}
-            <Route path="/store/:id" element={<ProductDetail />} />
+            {/* Shop — full-screen flow (no bottom nav), available to any user.
+                Product detail is namespaced as /store/product/:id so the gym
+                store can own the /store/:gymId slug. */}
+            <Route path="/store/product/:id" element={<ProductDetail />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
 

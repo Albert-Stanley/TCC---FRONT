@@ -42,9 +42,16 @@ function dtoToProduct(d: ProdutoDTO): Product {
   }
 }
 
-/** Lists the full catalog (GET /Gyms/Catalog) and caches it. */
-export async function listProducts(): Promise<Product[]> {
-  const { data } = await api.get('/Gyms/Catalog')
+/**
+ * Lists a gym's catalog (GET /Gyms/Catalog) and caches it. When `gymId` is
+ * given it is sent as `?id_academia=` so the user can browse the store of a
+ * specific gym they belong to; without it the backend falls back to the user's
+ * first gym.
+ */
+export async function listProducts(gymId?: string): Promise<Product[]> {
+  const { data } = await api.get('/Gyms/Catalog', {
+    params: gymId ? { id_academia: gymId } : undefined,
+  })
   const products = asList<ProdutoDTO>(data).map(dtoToProduct)
   useProductsStore.getState().setProducts(products)
   return products

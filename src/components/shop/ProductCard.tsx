@@ -25,8 +25,8 @@ export function ProductCard({ product }: { product: Product }) {
     <div
       role="link"
       tabIndex={0}
-      onClick={() => navigate(`/store/${product.id}`)}
-      onKeyDown={(e) => e.key === 'Enter' && navigate(`/store/${product.id}`)}
+      onClick={() => navigate(`/store/product/${product.id}`)}
+      onKeyDown={(e) => e.key === 'Enter' && navigate(`/store/product/${product.id}`)}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-3xl border border-line bg-surface shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card"
     >
       <div className="relative">

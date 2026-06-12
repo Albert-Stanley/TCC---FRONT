@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Search, ShoppingBag, Truck, Settings } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Search, ShoppingBag, Truck, Settings, Building2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useProductsStore } from '@/store/productsStore'
 import { listProducts } from '@/lib/shopApi'
@@ -16,14 +16,26 @@ import { FREE_SHIPPING_FROM } from '@/lib/shop'
 
 export function Store() {
   const navigate = useNavigate()
+  const { gymId } = useParams<{ gymId: string }>()
   const isTeacher = useAuthStore((s) => s.user?.role === 'teacher')
+  const academias = useAuthStore((s) => s.user?.academias ?? [])
   const allProducts = useProductsStore((s) => s.products)
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('Todos')
   const [query, setQuery] = useState('')
 
+  // The store always carries the chosen gym in the URL (/store/:gymId). When
+  // it's missing, redirect to the user's first gym so the URL stays canonical.
+  const activeGymId = gymId ?? academias[0]?.id
+
   useEffect(() => {
-    void listProducts()
-  }, [])
+    if (!gymId && activeGymId) {
+      navigate(`/store/${activeGymId}`, { replace: true })
+    }
+  }, [gymId, activeGymId, navigate])
+
+  useEffect(() => {
+    if (activeGymId) void listProducts(activeGymId)
+  }, [activeGymId])
 
   const products = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -60,6 +72,31 @@ export function Store() {
       />
 
       <div className="flex flex-col gap-5 px-6 py-6">
+        {/* Gym store picker — choose which gym's catalog to browse. */}
+        {academias.length > 1 && (
+          <label className="flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 shadow-soft">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <Building2 size={18} />
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                Loja da academia
+              </span>
+              <select
+                value={activeGymId ?? ''}
+                onChange={(e) => navigate(`/store/${e.target.value}`)}
+                className="-ml-0.5 w-full truncate bg-transparent text-[15px] font-semibold text-content focus:outline-none"
+              >
+                {academias.map((a) => (
+                  <option key={`${a.id}-${a.vinculo}`} value={a.id}>
+                    {a.nome}
+                  </option>
+                ))}
+              </select>
+            </span>
+          </label>
+        )}
+
         {/* Promo banner */}
         <Hero variant="card" className="!py-6">
           <Badge tone="primary">Loja oficial</Badge>

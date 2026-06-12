@@ -41,7 +41,7 @@ export function StudentClasses() {
       <Header
         title="Aulas"
         subtitle="Aulas de hoje na sua academia."
-        back={false}
+        backTo="/gyms"
       />
 
       <div className="flex flex-col gap-4 px-6 py-6">
