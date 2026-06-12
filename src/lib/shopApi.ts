@@ -52,7 +52,16 @@ export async function listProducts(gymId?: string): Promise<Product[]> {
   const { data } = await api.get('/Gyms/Catalog', {
     params: gymId ? { id_academia: gymId } : undefined,
   })
-  const products = asList<ProdutoDTO>(data).map(dtoToProduct)
+  // Deduplica por id: o catálogo pode vir com produtos repetidos e eles
+  // apareciam duplicados na vitrine e no gerenciador.
+  const seen = new Set<string>()
+  const products = asList<ProdutoDTO>(data)
+    .map(dtoToProduct)
+    .filter((p) => {
+      if (seen.has(p.id)) return false
+      seen.add(p.id)
+      return true
+    })
   useProductsStore.getState().setProducts(products)
   return products
 }

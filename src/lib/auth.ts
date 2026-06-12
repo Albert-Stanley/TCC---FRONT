@@ -41,16 +41,29 @@ export function enrolledGym(user: User | null): GymLink | undefined {
 export async function fetchProfile(): Promise<User> {
   const { data } = await api.get<MeResponse>('/Users/Me')
   const role: Role = data.role === 'teacher' ? 'teacher' : 'student'
-  const academias: GymLink[] = (data.academias ?? []).map((a) => ({
-    id: a.id ?? '',
-    nome: a.nome ?? '',
-    cnpj: a.cnpj ?? '',
-    vinculo:
-      a.vinculo === 'professor' || a.vinculo === 'instrutor'
-        ? a.vinculo
-        : 'aluno',
-    faixa: a.faixa || undefined,
-  }))
+
+  // O backend pode devolver a mesma academia mais de uma vez (vínculos
+  // duplicados), o que duplicava os cards de academia e o seletor da loja.
+  // Deduplica por id, mantendo o vínculo de maior privilégio.
+  const VINCULO_RANK: Record<string, number> = { professor: 3, instrutor: 2, aluno: 1 }
+  const byId = new Map<string, GymLink>()
+  for (const a of data.academias ?? []) {
+    const link: GymLink = {
+      id: a.id ?? '',
+      nome: a.nome ?? '',
+      cnpj: a.cnpj ?? '',
+      vinculo:
+        a.vinculo === 'professor' || a.vinculo === 'instrutor'
+          ? a.vinculo
+          : 'aluno',
+      faixa: a.faixa || undefined,
+    }
+    const existing = byId.get(link.id)
+    if (!existing || VINCULO_RANK[link.vinculo] > VINCULO_RANK[existing.vinculo]) {
+      byId.set(link.id, { ...existing, ...link })
+    }
+  }
+  const academias: GymLink[] = [...byId.values()]
 
   const user: User = {
     id: data.id ?? '',
