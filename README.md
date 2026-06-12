@@ -76,7 +76,7 @@ O gate de rotas/RBAC do front é apenas de UX — a validação de JWT e de perm
 - **Correios / BrasilAPI** — consulta de CEP (com fallback para o ViaCEP).
 - **OpenStreetMap / Nominatim** — geocodificação de endereço (nível da casa) e
   mapa embutido, sem chave de API.
-- **Stripe** — mensalidade do aluno e onboarding de recebimentos do professor.
+- **Stripe** — pagamento da mensalidade do aluno.
 
 ## Estrutura do projeto
 

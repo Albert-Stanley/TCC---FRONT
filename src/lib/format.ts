@@ -3,6 +3,17 @@ export function onlyDigits(value: string): string {
   return value.replace(/\D/g, '')
 }
 
+/**
+ * Mantém apenas dígitos e uma única vírgula decimal (padrão brasileiro), com no
+ * máximo duas casas — para campos de preço. Converte ponto em vírgula e remove
+ * qualquer outro caractere, impedindo letras/símbolos na digitação.
+ */
+export function onlyDecimal(value: string): string {
+  const cleaned = value.replace(/\./g, ',').replace(/[^\d,]/g, '')
+  const [intPart, ...rest] = cleaned.split(',')
+  return rest.length ? `${intPart},${rest.join('').slice(0, 2)}` : intPart
+}
+
 /** Masks a CPF as 000.000.000-00 while typing. */
 export function maskCpf(value: string): string {
   return onlyDigits(value)

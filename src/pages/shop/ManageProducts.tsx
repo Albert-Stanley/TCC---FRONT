@@ -18,7 +18,7 @@ import {
   type Product,
   type ShopCategory,
 } from '@/lib/shop'
-import { formatBRL } from '@/lib/format'
+import { formatBRL, onlyDigits, onlyDecimal } from '@/lib/format'
 
 const EDITABLE_CATEGORIES = CATEGORIES.filter(
   (c): c is ShopCategory => c !== 'Todos',
@@ -280,7 +280,7 @@ export function ManageProducts() {
               <Input
                 label="Preço"
                 value={form.price}
-                onChange={(e) => update('price', e.target.value)}
+                onChange={(e) => update('price', onlyDecimal(e.target.value))}
                 inputMode="decimal"
                 placeholder="0,00"
                 leftSlot={<span className="text-sm font-semibold">R$</span>}
@@ -291,7 +291,7 @@ export function ManageProducts() {
             <Input
               label="Quantidade em estoque (1 a 20)"
               value={form.stock}
-              onChange={(e) => update('stock', e.target.value)}
+              onChange={(e) => update('stock', onlyDigits(e.target.value))}
               inputMode="numeric"
               placeholder="1"
               error={fieldErrors.stock}

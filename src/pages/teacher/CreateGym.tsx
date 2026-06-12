@@ -216,7 +216,7 @@ export function CreateGym() {
                 inputMode="numeric"
                 className="w-24"
                 value={number}
-                onChange={(e) => setNumber(e.target.value)}
+                onChange={(e) => setNumber(onlyDigits(e.target.value))}
                 onBlur={() => locate()}
               />
             </div>
