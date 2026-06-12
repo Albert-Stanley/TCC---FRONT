@@ -6,6 +6,7 @@ import {
   UserRound,
   Mail,
   FileText,
+  MapPin,
   Building2,
   RefreshCw,
 } from 'lucide-react'
@@ -22,7 +23,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { FormError } from '@/components/ui/FormError'
-import { maskCpf, maskCnpj } from '@/lib/format'
+import { maskCpf, maskCnpj, maskCep } from '@/lib/format'
 
 const VINCULO_LABEL: Record<string, string> = {
   professor: 'Professor',
@@ -169,6 +170,11 @@ export function Profile() {
             icon={FileText}
             label="CPF"
             value={user?.cpf ? maskCpf(user.cpf) : undefined}
+          />
+          <InfoRow
+            icon={MapPin}
+            label="CEP"
+            value={user?.cep ? maskCep(user.cep) : undefined}
           />
           {user?.faixa && (
             <InfoRow icon={GraduationCap} label="Graduação" value={`Faixa ${user.faixa}`} />

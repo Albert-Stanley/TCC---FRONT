@@ -8,6 +8,7 @@ interface MeResponse {
   name?: string
   email?: string
   cpf?: string
+  cep?: string
   role?: string
   faixa?: string
   academias?: {
@@ -70,6 +71,7 @@ export async function fetchProfile(): Promise<User> {
     name: data.name,
     email: data.email ?? '',
     cpf: data.cpf,
+    cep: data.cep || undefined,
     role,
     faixa: data.faixa,
     academias,
