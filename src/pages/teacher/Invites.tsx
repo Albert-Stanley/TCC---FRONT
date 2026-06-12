@@ -10,7 +10,6 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
-import { formatDate } from '@/lib/format'
 import type { Invite } from '@/types'
 
 /** Builds the shareable invite link from a token (mirrors the mockup format). */
@@ -190,13 +189,7 @@ export function Invites() {
             const used = invite.status === 'used'
             return (
               <Card key={invite.id} className="flex min-w-0 flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
-                    <Link2 size={18} className="shrink-0 text-content" />
-                    <span className="truncate">
-                      Criado em {formatDate(invite.createdAt) || '—'}
-                    </span>
-                  </div>
+                <div className="flex items-center justify-end gap-3">
                   <Badge tone={used ? 'neutral' : 'primary'}>
                     {used ? 'Usado' : 'Ativo'}
                   </Badge>
