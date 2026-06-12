@@ -124,24 +124,53 @@ export async function lookupCep(cep: string): Promise<CepInfo | null> {
   }
 }
 
-async function fetchNominatim(params: Record<string, string>): Promise<LatLng | null> {
-  const qs = new URLSearchParams({ format: 'json', limit: '1', ...params })
+interface NominatimHit {
+  lat: string
+  lon: string
+  /** Present only when Nominatim resolved the exact house number (rooftop). */
+  address?: { house_number?: string }
+}
+
+/** Runs a Brazil-scoped Nominatim search and returns up to 5 ranked hits. */
+async function queryNominatim(params: Record<string, string>): Promise<NominatimHit[]> {
+  const qs = new URLSearchParams({
+    format: 'json',
+    limit: '5',
+    addressdetails: '1',
+    countrycodes: 'br',
+    ...params,
+  })
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?${qs.toString()}`,
       { headers: { Accept: 'application/json' } },
     )
-    if (!res.ok) return null
+    if (!res.ok) return []
     const data = await res.json()
-    const hit = Array.isArray(data) ? data[0] : null
-    if (!hit) return null
-    const lat = parseFloat(hit.lat)
-    const lng = parseFloat(hit.lon)
-    if (Number.isNaN(lat) || Number.isNaN(lng)) return null
-    return { lat, lng }
+    return Array.isArray(data) ? (data as NominatimHit[]) : []
   } catch {
-    return null
+    return []
   }
+}
+
+function toLatLng(hit?: NominatimHit): LatLng | null {
+  if (!hit) return null
+  const lat = parseFloat(hit.lat)
+  const lng = parseFloat(hit.lon)
+  return Number.isNaN(lat) || Number.isNaN(lng) ? null : { lat, lng }
+}
+
+/**
+ * Picks the most precise hit. When the address carries a house number, prefer
+ * a result that actually resolved to that `house_number` (rooftop-level) over
+ * the street/locality centroid Nominatim returns otherwise.
+ */
+function pickPrecise(hits: NominatimHit[], wantHouse: boolean): LatLng | null {
+  if (wantHouse) {
+    const exact = hits.find((h) => h.address?.house_number)
+    if (exact) return toLatLng(exact)
+  }
+  return toLatLng(hits[0])
 }
 
 /**
@@ -197,27 +226,51 @@ export async function geocodeAddress(
 ): Promise<LatLng | null> {
   if (typeof query === 'string') {
     const q = query.trim()
-    return q ? fetchNominatim({ q }) : null
+    if (!q) return null
+    return pickPrecise(await queryNominatim({ q }), /\d/.test(q))
   }
 
   const { street, number, district, city, uf, cep } = query
-  const streetLine = [number, street].filter(Boolean).join(' ')
+  const hasHouse = Boolean(street && number)
+  // Brazilian order ("Rua Tal, 123") parses more reliably than "123 Rua Tal".
+  const streetLine = [street, number].filter(Boolean).join(', ')
 
-  // 1) Structured query — Nominatim resolves these far better than free text.
-  if (streetLine || city) {
-    const structured = await fetchNominatim({
+  // Tier 1 — free-form WITH the house number. This is what lets the pin land
+  // on the exact address; we only accept it when a rooftop match comes back.
+  if (streetLine) {
+    const free = [streetLine, district, city, uf, 'Brasil'].filter(Boolean).join(', ')
+    const hits = await queryNominatim({ q: free })
+    if (hasHouse) {
+      const exact = hits.find((h) => h.address?.house_number)
+      if (exact) return toLatLng(exact)
+    } else {
+      const precise = pickPrecise(hits, false)
+      if (precise) return precise
+    }
+  }
+
+  // Tier 2 — structured query (street/city/state) for a street-level match.
+  if (street || city) {
+    const structured = await queryNominatim({
       ...(streetLine ? { street: streetLine } : {}),
       ...(city ? { city } : {}),
       ...(uf ? { state: uf } : {}),
-      ...(cep ? { postalcode: cep } : {}),
       country: 'Brazil',
     })
-    if (structured) return structured
+    const precise = pickPrecise(structured, hasHouse)
+    if (precise) return precise
   }
 
-  // 2) Free-form fallback.
-  const free = [streetLine, district, city, uf, 'Brasil'].filter(Boolean).join(', ')
-  return free ? fetchNominatim({ q: free }) : null
+  // Tier 3 — CEP centroid as a last resort.
+  const cepDigits = (cep ?? '').replace(/\D/g, '')
+  if (cepDigits.length === 8) {
+    return pickPrecise(
+      await queryNominatim({ postalcode: cepDigits, country: 'Brazil' }),
+      false,
+    )
+  }
+
+  return null
 }
 
 /**
