@@ -128,7 +128,11 @@ function StudentRow({
   const recent = (presence?.presencas ?? []).slice(-3).reverse()
 
   return (
-    <Card className="flex flex-col gap-0 p-0 overflow-hidden">
+    <Card
+      className={`flex flex-col gap-0 overflow-hidden p-0 ${
+        expanded ? 'lg:col-span-2' : ''
+      }`}
+    >
       <button
         onClick={onToggle}
         className="flex items-center gap-3 p-3 text-left transition-colors hover:bg-canvas"
@@ -479,7 +483,7 @@ export function Students() {
             }
           />
         ) : (
-          <div className="grid items-start gap-3 lg:grid-cols-2">
+          <div className="grid items-start gap-3 lg:grid-flow-row-dense lg:grid-cols-2">
             {visible.map((st) => (
               <StudentRow
                 key={st.id_aluno}
