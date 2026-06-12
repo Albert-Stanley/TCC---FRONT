@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Trash2,
@@ -27,6 +27,8 @@ import { Logo } from '@/components/ui/Logo'
 import { Avatar } from '@/components/ui/Avatar'
 import { SkeletonList } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { SectionTitle } from '@/components/ui/SectionTitle'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { maskCpf, maskCnpj, maskCep, onlyDigits, formatDate } from '@/lib/format'
@@ -270,11 +272,6 @@ export function Students() {
     }
   }, [])
 
-  const belts = useMemo(() => {
-    const set = new Set(students.map((s) => s.belt).filter(Boolean))
-    return set.size
-  }, [students])
-
   const visible = students.filter((s) => {
     const q = query.trim().toLowerCase()
     return (
@@ -422,36 +419,28 @@ export function Students() {
           </button>
         </Card>
 
-        <UpdateLocationPanel
-          gymName={gym?.name ?? 'Sua academia'}
-          onSaved={handleLocationSaved}
-        />
+        {/* Quick actions grouped under the gym identity. */}
+        <div className="flex flex-col gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/classes')}
+            className="lg:hidden"
+          >
+            <GraduationCap size={18} />
+            Gerenciar aulas
+          </Button>
 
-        {/* Summary stats */}
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: 'Alunos', value: students.length, tone: 'text-content' },
-            { label: 'Faixas na academia', value: belts, tone: 'text-primary' },
-          ].map((s) => (
-            <Card key={s.label} className="px-3 py-3 text-center">
-              <p className={`font-display text-2xl font-extrabold ${s.tone}`}>
-                {s.value}
-              </p>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                {s.label}
-              </p>
-            </Card>
-          ))}
+          <UpdateLocationPanel
+            gymName={gym?.name ?? 'Sua academia'}
+            onSaved={handleLocationSaved}
+          />
         </div>
 
-        <Button
-          variant="secondary"
-          onClick={() => navigate('/classes')}
-          className="lg:hidden"
-        >
-          <GraduationCap size={18} />
-          Gerenciar aulas
-        </Button>
+        {/* Students */}
+        <div className="flex items-center justify-between gap-3">
+          <SectionTitle>Alunos da academia</SectionTitle>
+          <Badge tone="soft">{students.length}</Badge>
+        </div>
 
         {/* Search */}
         <div className="relative">

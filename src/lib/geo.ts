@@ -94,7 +94,7 @@ export function getCurrentPosition(
   })
 }
 
-/** Address fields resolved from a Brazilian CEP (ViaCEP). */
+/** Address fields resolved from a Brazilian CEP. */
 export interface CepInfo {
   cep: string
   street?: string
@@ -103,10 +103,36 @@ export interface CepInfo {
   uf?: string
 }
 
-/** Looks up a Brazilian postal code via ViaCEP. Returns null if not found. */
+/**
+ * Looks up a Brazilian postal code. Consults the Correios base through
+ * BrasilAPI's CEP v2 endpoint, which is CORS-enabled for the browser (the
+ * official Correios webservice has no public CORS access). Falls back to ViaCEP
+ * if BrasilAPI is unavailable. Returns null when the CEP isn't found.
+ */
 export async function lookupCep(cep: string): Promise<CepInfo | null> {
   const digits = cep.replace(/\D/g, '')
   if (digits.length !== 8) return null
+
+  // 1) Correios (via BrasilAPI v2).
+  try {
+    const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${digits}`)
+    if (res.ok) {
+      const d = await res.json()
+      if (d?.cep) {
+        return {
+          cep: digits,
+          street: d.street || undefined,
+          district: d.neighborhood || undefined,
+          city: d.city || undefined,
+          uf: d.state || undefined,
+        }
+      }
+    }
+  } catch {
+    // Network/CORS hiccup — fall through to ViaCEP.
+  }
+
+  // 2) ViaCEP fallback.
   try {
     const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
     if (!res.ok) return null
