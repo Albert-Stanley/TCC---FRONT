@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { SkeletonList } from '@/components/ui/Skeleton'
-import { formatDate, formatTime } from '@/lib/format'
+import { formatWallDate, formatWallTime } from '@/lib/format'
 
 interface Aula {
   id_aula: string
@@ -67,11 +67,11 @@ export function StudentClasses() {
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span className="flex items-center gap-1">
                     <CalendarDays size={13} className="text-primary" />
-                    {formatDate(a.data_aula) || '—'}
+                    {formatWallDate(a.data_aula) || '—'}
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock size={13} className="text-primary" />
-                    {formatTime(a.data_aula) || '—'}
+                    {formatWallTime(a.data_aula) || '—'}
                   </span>
                   {a.faixa && <Badge tone="neutral">{a.faixa}</Badge>}
                 </p>

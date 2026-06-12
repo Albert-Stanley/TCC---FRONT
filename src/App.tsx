@@ -94,7 +94,6 @@ export function App() {
               'Postura de combate, guarda e deslocamentos.',
               'Defesa 360° contra ataques circulares.',
             ],
-            videos: ['https://www.youtube.com/watch?v=jNQXAC9IVRw'],
             createdAt: now,
           },
           {
@@ -106,7 +105,6 @@ export function App() {
               'Circuito de força e resistência (4 estações).',
               'Defesa contra estrangulamento frontal.',
             ],
-            videos: [],
             createdAt: now,
           },
         ],

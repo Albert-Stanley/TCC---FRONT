@@ -79,8 +79,6 @@ export interface GymClass {
   schedule?: string
   /** Lesson notes / content blocks (POST /Gym/Classes/Information). */
   contents: string[]
-  /** Video URLs (POST /Gym/Classes/Videos). */
-  videos: string[]
   createdAt: string
 }
 

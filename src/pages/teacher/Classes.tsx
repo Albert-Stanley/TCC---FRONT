@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { GraduationCap, Plus, Clock, CalendarDays } from 'lucide-react'
+import { GraduationCap, Plus, Clock, CalendarDays, Pencil, X } from 'lucide-react'
 import { api, asList, getErrorMessage } from '@/lib/api'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
@@ -10,7 +10,7 @@ import { InfoNote } from '@/components/ui/InfoNote'
 import { FormError } from '@/components/ui/FormError'
 import { SectionTitle } from '@/components/ui/SectionTitle'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { formatDate, formatTime } from '@/lib/format'
+import { formatWallDate, formatWallTime, toDateTimeLocal } from '@/lib/format'
 
 const BELTS = ['Branca', 'Amarela', 'Laranja', 'Verde', 'Azul', 'Marrom', 'Preta']
 
@@ -22,9 +22,10 @@ interface Aula {
 }
 
 /**
- * Manage classes. Each class is created via POST /Gyms/Classes/Creation with a
- * single content text, a date/time and the target belt (faixa). The class list
- * comes from GET /Gyms/Classes (the teacher's academia).
+ * Manage classes. Each class is created via POST /Gyms/Classes/Creation and
+ * edited via PUT /Gyms/Classes/Update, both with a single content text, a
+ * date/time and the target belt (faixa). The class list comes from
+ * GET /Gyms/Classes (the teacher's academia).
  */
 export function Classes() {
   const [aulas, setAulas] = useState<Aula[]>([])
@@ -33,6 +34,8 @@ export function Classes() {
   const [faixa, setFaixa] = useState('Branca')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Id da aula em edição, ou null quando o formulário está criando uma nova. */
+  const [editingId, setEditingId] = useState<string | null>(null)
   /** Optional AAAA-MM-DD filter passed as ?data= to GET /Gyms/Classes. */
   const [filterDate, setFilterDate] = useState('')
 
@@ -52,23 +55,51 @@ export function Classes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterDate])
 
-  async function createClass(e: FormEvent) {
+  function resetForm() {
+    setConteudo('')
+    setDataAula('')
+    setFaixa('Branca')
+    setEditingId(null)
+  }
+
+  /** Carrega uma aula existente no formulário para edição. */
+  function startEdit(a: Aula) {
+    setEditingId(a.id_aula)
+    setConteudo(a.conteudo ?? '')
+    setDataAula(toDateTimeLocal(a.data_aula))
+    setFaixa(a.faixa ?? 'Branca')
+    setError(null)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function submitClass(e: FormEvent) {
     e.preventDefault()
     if (!conteudo.trim() || !dataAula) return
     setCreating(true)
     setError(null)
     try {
       // Backend expects "AAAA-MM-DD HH:MM"; the datetime-local input uses a "T".
-      await api.post('/Gyms/Classes/Creation', {
+      const body = {
         conteudo: conteudo.trim(),
         data_aula: dataAula.replace('T', ' '),
         faixa,
-      })
-      setConteudo('')
-      setDataAula('')
+      }
+      if (editingId) {
+        await api.put('/Gyms/Classes/Update', { id_aula: editingId, ...body })
+      } else {
+        await api.post('/Gyms/Classes/Creation', body)
+      }
+      resetForm()
       await load()
     } catch (err) {
-      setError(getErrorMessage(err, 'Não foi possível criar a aula.'))
+      setError(
+        getErrorMessage(
+          err,
+          editingId
+            ? 'Não foi possível atualizar a aula.'
+            : 'Não foi possível criar a aula.',
+        ),
+      )
     } finally {
       setCreating(false)
     }
@@ -79,19 +110,28 @@ export function Classes() {
       <Header title="Aulas" backTo="/home" />
 
       <div className="flex flex-col gap-6 px-6 py-6">
-        <SectionTitle underline>Nova aula</SectionTitle>
+        <SectionTitle underline>{editingId ? 'Editar aula' : 'Nova aula'}</SectionTitle>
 
         {error && <FormError>{error}</FormError>}
 
-        <form onSubmit={createClass}>
+        <form onSubmit={submitClass}>
           <Card className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink text-white dark:bg-white/10">
                 <GraduationCap size={20} />
               </span>
-              <h3 className="font-display text-sm font-bold uppercase tracking-tight text-content">
-                Criar aula
+              <h3 className="flex-1 font-display text-sm font-bold uppercase tracking-tight text-content">
+                {editingId ? 'Editar aula' : 'Criar aula'}
               </h3>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted transition-colors hover:text-content"
+                >
+                  <X size={15} /> Cancelar
+                </button>
+              )}
             </div>
             <Input
               name="conteudo"
@@ -126,7 +166,15 @@ export function Classes() {
               </div>
             </div>
             <Button type="submit" loading={creating}>
-              <Plus size={18} /> Criar aula
+              {editingId ? (
+                <>
+                  <Pencil size={18} /> Salvar alterações
+                </>
+              ) : (
+                <>
+                  <Plus size={18} /> Criar aula
+                </>
+              )}
             </Button>
           </Card>
         </form>
@@ -166,7 +214,12 @@ export function Classes() {
         ) : (
           <div className="flex flex-col gap-3">
             {aulas.map((a) => (
-              <Card key={a.id_aula} className="flex items-center gap-3 p-4">
+              <Card
+                key={a.id_aula}
+                className={`flex items-center gap-3 p-4 ${
+                  editingId === a.id_aula ? 'ring-2 ring-primary/40' : ''
+                }`}
+              >
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary">
                   <GraduationCap size={20} />
                 </span>
@@ -177,15 +230,23 @@ export function Classes() {
                   <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
                     <span className="flex items-center gap-1">
                       <CalendarDays size={13} className="text-primary" />
-                      {formatDate(a.data_aula) || '—'}
+                      {formatWallDate(a.data_aula) || '—'}
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock size={13} className="text-primary" />
-                      {formatTime(a.data_aula) || '—'}
+                      {formatWallTime(a.data_aula) || '—'}
                     </span>
                     {a.faixa && <Badge tone="neutral">{a.faixa}</Badge>}
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => startEdit(a)}
+                  aria-label="Editar aula"
+                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold uppercase tracking-wide text-muted transition-colors hover:text-primary active:bg-canvas"
+                >
+                  <Pencil size={16} /> Editar
+                </button>
               </Card>
             ))}
           </div>

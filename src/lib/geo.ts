@@ -68,7 +68,7 @@ export function openDirections(
 }
 
 /** Max distance from the gym (metres) that still counts as "at the gym". */
-export const CHECKIN_RADIUS_M = 150
+export const CHECKIN_RADIUS_M = 500
 
 /**
  * Promise wrapper around the Geolocation API. Resolves the current coordinates

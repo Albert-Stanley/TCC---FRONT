@@ -4,15 +4,14 @@ import type { GymClass } from '@/types'
 
 /**
  * Caches classes created by the teacher. The authoritative endpoint map has no
- * "list classes" route, so the classes (and their content + videos) are kept
- * here to drive both the teacher manager and the student's content screen.
+ * "list classes" route, so the classes (and their content) are kept here to
+ * drive both the teacher manager and the student's content screen.
  * Cleared on logout from the auth flow.
  */
 interface ClassState {
   classes: GymClass[]
   addClass: (c: GymClass) => void
   addContent: (id: string, content: string) => void
-  addVideo: (id: string, url: string) => void
   removeClass: (id: string) => void
 }
 
@@ -25,12 +24,6 @@ export const useClassStore = create<ClassState>()(
         set((s) => ({
           classes: s.classes.map((c) =>
             c.id === id ? { ...c, contents: [...c.contents, content] } : c,
-          ),
-        })),
-      addVideo: (id, url) =>
-        set((s) => ({
-          classes: s.classes.map((c) =>
-            c.id === id ? { ...c, videos: [...c.videos, url] } : c,
           ),
         })),
       removeClass: (id) =>
