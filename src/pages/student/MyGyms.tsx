@@ -163,8 +163,8 @@ export function MyGyms() {
             />
             <ActionCard
               icon={GraduationCap}
-              title="Aulas e conteúdos"
-              subtitle="Veja conteúdos e vídeos das aulas."
+              title="Aulas"
+              subtitle="Veja as aulas de hoje na sua academia."
               onClick={() => navigate('/aulas')}
             />
             <ActionCard

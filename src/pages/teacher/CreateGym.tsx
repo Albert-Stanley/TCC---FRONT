@@ -19,7 +19,7 @@ import { fetchProfile } from '@/lib/auth'
 const PERKS = [
   { icon: Link2, text: 'Gere convites e adicione alunos.' },
   { icon: Users, text: 'Gerencie alunos, faixas e mensalidades.' },
-  { icon: GraduationCap, text: 'Crie aulas com conteúdo e vídeos.' },
+  { icon: GraduationCap, text: 'Crie aulas com conteúdo e graduação.' },
 ]
 
 export function CreateGym() {

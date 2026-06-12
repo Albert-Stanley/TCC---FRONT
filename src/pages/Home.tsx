@@ -211,8 +211,8 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
           <SectionTitle>Ações rápidas</SectionTitle>
           <QuickAction
             icon={GraduationCap}
-            title="Aulas e conteúdos"
-            subtitle="Veja o conteúdo e os vídeos das aulas."
+            title="Aulas"
+            subtitle="Veja as aulas de hoje na sua academia."
             onClick={() => navigate('/aulas')}
           />
           <QuickAction

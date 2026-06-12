@@ -197,9 +197,9 @@ export function TeacherHome() {
           </section>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-2">
           {/* Pending requests */}
-          <section className="flex flex-col gap-3">
+          <section className="flex min-w-0 flex-col gap-3">
             <div className="flex items-center justify-between">
               <SectionTitle>Solicitações pendentes</SectionTitle>
               <button
@@ -216,7 +216,7 @@ export function TeacherHome() {
             ) : (
               <div className="flex flex-col gap-2">
                 {pending.slice(0, 3).map((r) => (
-                  <Card key={r.id_aluno} className="flex items-center gap-3 py-3">
+                  <Card key={r.id_aluno} className="flex min-w-0 items-center gap-3 py-3">
                     <Avatar name={r.name} size="h-10 w-10 text-base" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-content">
@@ -240,7 +240,7 @@ export function TeacherHome() {
           </section>
 
           {/* Recent invites */}
-          <section className="flex flex-col gap-3">
+          <section className="flex min-w-0 flex-col gap-3">
             <div className="flex items-center justify-between">
               <SectionTitle>Convites recentes</SectionTitle>
               <button
@@ -255,7 +255,7 @@ export function TeacherHome() {
             ) : (
               <div className="flex flex-col gap-2">
                 {activeInvites.slice(0, 2).map((inv) => (
-                  <Card key={inv.id} className="flex items-center gap-3 py-3">
+                  <Card key={inv.id} className="flex min-w-0 items-center gap-3 py-3">
                     <Link2 size={20} className="shrink-0 text-content" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-mono text-xs text-content">
@@ -282,7 +282,7 @@ export function TeacherHome() {
               <h3 className="font-display text-[15px] font-bold uppercase tracking-tight text-content">
                 Gerenciar aulas
               </h3>
-              <p className="text-sm text-muted">Crie aulas, conteúdos e vídeos.</p>
+              <p className="text-sm text-muted">Crie e edite as aulas da academia.</p>
             </div>
             <ChevronRight size={20} className="shrink-0 text-neutral-300" />
           </Card>
