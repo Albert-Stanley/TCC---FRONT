@@ -31,7 +31,7 @@ export function maskCnpj(value: string): string {
 
 /**
  * Extracts the invite token from a pasted value, accepting either a raw token
- * or a full link such as `localhost:3000/invite?=<token>` or `.../invite/<token>`.
+ * or a full link such as `localhost:3000/invite?invite=<token>` or `.../invite/<token>`.
  */
 export function extractInviteToken(value: string): string {
   const trimmed = value.trim()

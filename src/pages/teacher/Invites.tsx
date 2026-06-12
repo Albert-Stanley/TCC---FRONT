@@ -16,7 +16,7 @@ import type { Invite } from '@/types'
 function inviteUrl(token: string): string {
   const origin =
     typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
-  return `${origin}/invite?token=${token}`
+  return `${origin}/invite?invite=${token}`
 }
 
 export function Invites() {

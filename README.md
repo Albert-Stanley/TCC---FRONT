@@ -1,91 +1,116 @@
-# KravConnect — Frontend (KravApp)
+# KravConnect — Frontend
 
-Mobile-first web client for the **KravConnect** martial-arts gym management system.
-Built with **React + TypeScript + Vite + Tailwind CSS**, consuming the Node.js RESTful API.
+Cliente web **mobile-first** do **KravConnect**, uma plataforma de gestão para
+academias de **Krav Maga**. Conecta **professores**, **instrutores** e **alunos**
+em um único app: gestão da academia, aulas, **presença por GPS**, mensalidade e
+loja de equipamentos.
+
+- **Produção:** https://kravconnect.vercel.app (deploy na Vercel, branch `main`)
+- **API (backend em Go):** https://api-krav-maga-app.onrender.com
 
 ## Stack
 
-- **React 18 + TypeScript** — UI and type safety
-- **Vite** — dev server and build
-- **Tailwind CSS v3** — styling (black / white / primary red `#E60000`)
-- **React Router v6** — routing
-- **Zustand** (with `persist`) — session + RBAC state
-- **Axios** — HTTP client with JWT interceptors
-- **lucide-react** — icons
+- **React 18 + TypeScript** — UI e segurança de tipos
+- **Vite** — dev server e build
+- **Tailwind CSS v3** — estilização (preto / branco / vermelho `#E60000`)
+- **React Router v6** — roteamento com rotas protegidas por papel
+- **Zustand** (com `persist`) — estado global, sessão e RBAC persistidos
+- **Axios** — cliente HTTP com interceptors (injeta JWT, trata expiração de sessão)
+- **lucide-react** — ícones
 
-## Getting started
+O backend é um serviço **Go (net/http)** com **MySQL/GORM**, **JWT**, **Redis**
+(cache de cadastro/códigos), **MongoDB** (logs), **Stripe** (pagamentos) e envio
+de e-mail (códigos de confirmação/recuperação). Front e back se comunicam por um
+contrato REST.
+
+## Como rodar
 
 ```bash
 npm install
-cp .env.example .env   # adjust VITE_API_URL if your API isn't on :3000
-npm run dev            # http://localhost:5173
+cp .env.example .env    # ajuste VITE_API_URL se o backend não estiver no padrão
+npm run dev             # http://localhost:5173
 ```
 
-Build for production:
+Build de produção:
 
 ```bash
-npm run build          # type-checks then bundles into dist/
-npm run preview        # serves the production build locally
+npm run build           # type-check (tsc) + bundle em dist/
+npm run preview         # serve o build de produção localmente
 ```
 
-## Homologação (modo preview)
+`VITE_API_URL` define a base da API. Quando ausente, o cliente usa a API de
+produção no Render (ver `src/lib/api.ts`). Nenhum segredo é armazenado no
+repositório.
 
-Esta é uma **versão de homologação**: ela roda com **dados mockados**, sem
-backend. O flag `PREVIEW_MODE` em `src/lib/preview.ts` está **`true`**, o que:
+## Funcionalidades por papel
 
-- resolve toda chamada `api.*` contra o mock em memória (`src/lib/mock.ts`),
-  incluindo o catálogo da loja em `src/lib/shop.ts`;
-- semeia uma sessão demo e **ignora os guardas de autenticação/RBAC**, para que
-  todas as telas (aluno + professor) sejam navegáveis sem servidor.
+- **Professor** — cria a academia (`POST /Gyms/Creation`, que o promove a
+  professor), define a localização para o check-in (`PUT /Gyms/Location`), gera
+  convites, aprova solicitações de entrada, gerencia alunos e faixas
+  (`PUT /Gyms/Students/{id}/Belt`), promove alunos a instrutor, cria/edita aulas
+  e administra o catálogo da loja.
+- **Instrutor** — aluno promovido pelo professor; passa a exibir o vínculo de
+  instrutor no perfil e em "Minhas academias".
+- **Aluno** — entra na academia com um convite, vê as aulas do dia, faz
+  **check-in por GPS** (precisa estar a até 500 m da academia), paga a
+  mensalidade (Stripe) e navega na loja da academia.
 
-Nenhum segredo é necessário ou armazenado no repositório — o `PREVIEW_USER` é
-fictício e o `VITE_API_URL` aponta para `localhost` por padrão.
+Um mesmo usuário pode ter **múltiplos vínculos** (professor de uma academia,
+aluno/instrutor de outra). O front deduplica as academias por id mantendo o
+vínculo de maior privilégio (`src/lib/auth.ts`).
 
-### Antes de ir para produção
+## Contrato de autenticação
 
-1. Defina `PREVIEW_MODE = false` em `src/lib/preview.ts` (restaura auth + RBAC reais).
-2. Configure `VITE_API_URL` no `.env` apontando para a API real (nunca commite o `.env`).
-3. Garanta que o backend valide o JWT e o RBAC no servidor — o gate do frontend é apenas de UX.
+- `POST /Users/Auth` (corpo `{ email, senha }`) retorna o **JWT cru** (string).
+- O token é anexado a cada requisição via interceptor no header
+  `Authorization` — **sem** o prefixo `Bearer` (`src/lib/api.ts`).
+- `GET /Users/Me` resolve papel (professor/aluno), faixa e academias do usuário.
+- O backend responde erros como **string JSON** com status **400** (inclusive
+  para JWT inválido/ausente); o interceptor encerra a sessão nesses casos.
 
-## Project structure
+O gate de rotas/RBAC do front é apenas de UX — a validação de JWT e de permissões
+é responsabilidade do servidor.
+
+## Integrações externas
+
+- **Correios / BrasilAPI** — consulta de CEP (com fallback para o ViaCEP).
+- **OpenStreetMap / Nominatim** — geocodificação de endereço (nível da casa) e
+  mapa embutido, sem chave de API.
+- **Stripe** — mensalidade do aluno e onboarding de recebimentos do professor.
+
+## Estrutura do projeto
 
 ```
 src/
   components/
-    layout/   AppLayout (mobile frame), BottomNav, NavLayout, ProtectedRoute
-    ui/       Button, Input
-  lib/        api (Axios + interceptors), jwt, format (CPF/CEP masks)
-  pages/      Login, Register, Home, Placeholder
-  store/      authStore (Zustand, session + RBAC)
-  types/      shared domain types
-  App.tsx     routing
-  main.tsx    entry
+    layout/   AppLayout, Header, BottomNav, Sidebar, NavLayout, ProtectedRoute, ...
+    ui/       Button, Input, Card, Badge, MapView, NotificationsMenu, ...
+    shop/     ProductCard, CartButton, QuantityStepper, ...
+  lib/        api (Axios + interceptors), auth, jwt, geo (GPS/CEP/geocoding),
+              format (máscaras CPF/CEP/CNPJ), shopApi, roster, mailer
+  pages/      Login, Register, ForgotPassword, Home, Profile,
+              student/ (MyGyms, Presence, Payment, Classes, InsertInvite),
+              teacher/ (TeacherHome, Students, Invites, Requests, Classes, CreateGym),
+              shop/ (Store, ProductDetail, Cart, Checkout, ManageProducts)
+  store/      Zustand stores (auth, gym, cart, theme, notifications, ...)
+  types/      tipos de domínio compartilhados
+  App.tsx     roteamento     main.tsx  entrada
 ```
 
-## Design system
+## Modo de visualização (preview) — opcional
 
-- **Frame:** entire app constrained to `max-width: 400px`, centered, full height — mimics a native app.
-- **Colors:** pure black `#000000`, pure white `#FFFFFF`, primary red `#E60000` (`primary` / `primary-dark`).
-- **Type:** bold, uppercase headings; clean sans-serif body.
-- **Buttons:** block-level; solid red (primary) or transparent with black border (secondary).
-- **Nav:** fixed bottom bar with icons (Início, Academias, Convites, Perfil).
+Há um flag `PREVIEW_MODE` em `src/lib/preview.ts` (atualmente **`false`**). Quando
+ligado, ele resolve toda chamada `api.*` contra um mock em memória
+(`src/lib/mock.ts`) e ignora os guardas de auth/RBAC, permitindo navegar por todas
+as telas (aluno + professor) **sem backend** — útil para demonstração offline.
+Em produção ele permanece `false` para usar a API real.
 
-## API wiring (implemented so far)
+## Design
 
-| Screen        | Method & endpoint           | Notes                                            |
-| ------------- | --------------------------- | ------------------------------------------------ |
-| Login         | `POST /Auth`                | Body `{ email, password }` → returns JWT         |
-| Registration  | `POST /users/registration`  | Single-step. Body `{ name, email, password, cpf, cep }` |
-
-The JWT is attached automatically to every request via an Axios interceptor
-(`Authorization: Bearer <token>`). A `401` response clears the session.
-
-> Endpoint names follow the **task brief**. The TCC document uses some
-> alternative names (e.g. `/auth/login`, `/gyms`); align these with the backend
-> before integration.
-
-## Roadmap (next screens)
-
-Profile edit (`PUT /users/update`), gym creation (`POST /Gym/Create`), invite
-generation/approval, student management, class management, attendance and
-payments — all scaffolded behind the bottom navigation.
+- **Mobile-first e responsivo:** no celular, navegação inferior fixa; no desktop
+  (`lg+`), uma sidebar persistente e conteúdo em coluna centrada — o mesmo código.
+- **Tema claro/escuro** aplicado antes da primeira pintura (sem flash), com
+  persistência e respeito à preferência do sistema.
+- **Acessibilidade:** rótulos ARIA, papéis semânticos, anéis de foco e áreas de
+  toque adequadas; respeito às *safe-area insets* (notch).
+- **Cores:** preto, branco e o vermelho primário `#E60000`.

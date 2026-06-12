@@ -70,7 +70,7 @@ export function App() {
       const mk = (token: string, status: 'active' | 'used') => ({
         id: token,
         token,
-        url: `${origin}/invite?=${token}`,
+        url: `${origin}/invite?invite=${token}`,
         status,
         createdAt: new Date().toISOString(),
       })
