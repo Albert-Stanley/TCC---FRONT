@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Trash2, ShoppingCart, Truck, ArrowRight } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
@@ -7,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ProductThumb } from '@/components/shop/ProductThumb'
 import { QuantityStepper } from '@/components/shop/QuantityStepper'
 import { useCartStore, buildCart } from '@/store/cartStore'
+import { useProductsStore } from '@/store/productsStore'
 import { formatBRL } from '@/lib/format'
 import { FREE_SHIPPING_FROM } from '@/lib/shop'
 
@@ -15,6 +17,16 @@ export function Cart() {
   const items = useCartStore((s) => s.items)
   const setQty = useCartStore((s) => s.setQty)
   const remove = useCartStore((s) => s.remove)
+
+  // Reconcile quantities that exceed current stock (e.g. the catalog was
+  // updated after the item was added). setQty itself caps to stock.
+  useEffect(() => {
+    const products = useProductsStore.getState().products
+    for (const i of items) {
+      const stock = products.find((p) => p.id === i.id)?.stock
+      if (stock != null && i.qty > stock) setQty(i.id, stock)
+    }
+  }, [items, setQty])
 
   const { lines, subtotalCents, shippingCents, totalCents, freeShipping } =
     buildCart(items)
@@ -74,6 +86,7 @@ export function Cart() {
                     <QuantityStepper
                       value={qty}
                       size="sm"
+                      max={product.stock}
                       onChange={(v) => setQty(product.id, v)}
                     />
                     <p className="font-display text-base font-extrabold text-content">

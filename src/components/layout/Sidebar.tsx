@@ -103,7 +103,11 @@ export function Sidebar() {
               {user?.name ?? 'Atleta'}
             </p>
             <p className="truncate text-xs text-muted">
-              {role === 'teacher' ? 'Professor' : 'Aluno'}
+              {role === 'teacher'
+                ? 'Professor'
+                : role === 'instructor'
+                  ? 'Instrutor'
+                  : 'Aluno'}
             </p>
           </div>
         </NavLink>

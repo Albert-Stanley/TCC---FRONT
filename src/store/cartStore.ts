@@ -18,6 +18,20 @@ interface CartState {
   clear: () => void
 }
 
+/**
+ * Available stock for a product id, or `undefined` when unknown (e.g. the demo
+ * catalog has no stock) — in which case no cap is applied.
+ */
+function stockOf(id: string): number | undefined {
+  return useProductsStore.getState().products.find((p) => p.id === id)?.stock
+}
+
+/** Caps a desired quantity to the product's stock, when known. */
+function capToStock(id: string, qty: number): number {
+  const stock = stockOf(id)
+  return stock != null ? Math.min(qty, Math.max(stock, 0)) : qty
+}
+
 /** Persisted shopping cart, mirroring the other Zustand+persist stores. */
 export const useCartStore = create<CartState>()(
   persist(
@@ -26,22 +40,28 @@ export const useCartStore = create<CartState>()(
       add: (id, qty = 1, size) =>
         set((s) => {
           const existing = s.items.find((i) => i.id === id)
+          // Never let the cart hold more than what's in stock.
+          const nextQty = capToStock(id, (existing?.qty ?? 0) + qty)
+          if (nextQty <= 0) return s // esgotado: nada a adicionar
           if (existing) {
             return {
               items: s.items.map((i) =>
-                i.id === id ? { ...i, qty: i.qty + qty, size: size ?? i.size } : i,
+                i.id === id ? { ...i, qty: nextQty, size: size ?? i.size } : i,
               ),
             }
           }
-          return { items: [...s.items, { id, qty, size }] }
+          return { items: [...s.items, { id, qty: nextQty, size }] }
         }),
       setQty: (id, qty) =>
-        set((s) => ({
-          items:
-            qty <= 0
-              ? s.items.filter((i) => i.id !== id)
-              : s.items.map((i) => (i.id === id ? { ...i, qty } : i)),
-        })),
+        set((s) => {
+          const capped = capToStock(id, qty)
+          return {
+            items:
+              capped <= 0
+                ? s.items.filter((i) => i.id !== id)
+                : s.items.map((i) => (i.id === id ? { ...i, qty: capped } : i)),
+          }
+        }),
       remove: (id) => set((s) => ({ items: s.items.filter((i) => i.id !== id) })),
       clear: () => set({ items: [] }),
     }),

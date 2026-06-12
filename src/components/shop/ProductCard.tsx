@@ -13,9 +13,11 @@ export function ProductCard({ product }: { product: Product }) {
   const navigate = useNavigate()
   const add = useCartStore((s) => s.add)
   const [added, setAdded] = useState(false)
+  const outOfStock = product.stock != null && product.stock <= 0
 
   function handleAdd(e: MouseEvent) {
     e.stopPropagation()
+    if (outOfStock) return
     add(product.id, 1, product.sizes?.[0])
     setAdded(true)
     setTimeout(() => setAdded(false), 1200)
@@ -31,15 +33,20 @@ export function ProductCard({ product }: { product: Product }) {
     >
       <div className="relative">
         <ProductThumb product={product} className="aspect-square w-full" glyph="text-6xl" />
-        {product.badge && (
+        {product.badge && !outOfStock && (
           <Badge tone="primary" className="absolute left-3 top-3">
             {product.badge}
           </Badge>
         )}
-        {product.freeShipping && !product.badge && (
+        {product.freeShipping && !product.badge && !outOfStock && (
           <span className="absolute right-3 top-3 rounded-full bg-surface/90 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-emerald-600 shadow-soft backdrop-blur">
             Frete grátis
           </span>
+        )}
+        {outOfStock && (
+          <div className="absolute inset-0 flex items-center justify-center bg-surface/60 backdrop-blur-[1px]">
+            <Badge tone="ink">Esgotado</Badge>
+          </div>
         )}
       </div>
 
@@ -65,8 +72,13 @@ export function ProductCard({ product }: { product: Product }) {
           </div>
           <button
             onClick={handleAdd}
-            aria-label={`Adicionar ${product.name} ao carrinho`}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-primary transition-all hover:bg-primary-dark active:scale-90"
+            disabled={outOfStock}
+            aria-label={
+              outOfStock
+                ? `${product.name} esgotado`
+                : `Adicionar ${product.name} ao carrinho`
+            }
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-white shadow-primary transition-all hover:bg-primary-dark active:scale-90 disabled:pointer-events-none disabled:opacity-40"
           >
             {added ? <Check size={18} /> : <Plus size={18} />}
           </button>

@@ -47,6 +47,7 @@ export function Profile() {
   const [refreshing, setRefreshing] = useState(false)
 
   const isTeacher = user?.role === 'teacher'
+  const isInstructor = user?.role === 'instructor'
 
   // Refresh the profile from the backend on entry (belt promotions, new gyms).
   useEffect(() => {
@@ -100,8 +101,8 @@ export function Profile() {
                 </h2>
                 <p className="truncate text-sm text-muted">{user?.email}</p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <Badge tone={isTeacher ? 'primary' : 'ink'}>
-                    {isTeacher ? 'Professor' : 'Aluno'}
+                  <Badge tone={isTeacher || isInstructor ? 'primary' : 'ink'}>
+                    {isTeacher ? 'Professor' : isInstructor ? 'Instrutor' : 'Aluno'}
                   </Badge>
                   {user?.faixa && <Badge tone="soft">Faixa {user.faixa}</Badge>}
                 </div>

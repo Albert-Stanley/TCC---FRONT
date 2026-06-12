@@ -209,6 +209,14 @@ function StudentHome({ firstName, navigate }: StudentHomeProps) {
         {/* Quick actions */}
         <section className="flex flex-col gap-3">
           <SectionTitle>Ações rápidas</SectionTitle>
+          {user?.role === 'instructor' && (
+            <QuickAction
+              icon={CalendarCheck}
+              title="Criar aula"
+              subtitle="Registre uma nova aula para a sua graduação."
+              onClick={() => navigate('/classes')}
+            />
+          )}
           <QuickAction
             icon={GraduationCap}
             title="Aulas"

@@ -1,7 +1,7 @@
 // Domain types for KravConnect. The backend response shapes are inferred from
 // the API contract; fields are kept optional where the server payload may vary.
 
-export type Role = 'student' | 'teacher' | 'monitor'
+export type Role = 'student' | 'teacher' | 'instructor'
 
 /** A gym the user belongs to, as returned in GET /Users/Me `academias`. */
 export interface GymLink {

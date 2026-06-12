@@ -54,13 +54,19 @@ export function ProductDetail() {
     )
   }
 
+  const stock = product.stock
+  const outOfStock = stock != null && stock <= 0
+  const lowStock = stock != null && stock > 0 && stock <= 5
+
   function addToCart() {
+    if (outOfStock) return
     add(product!.id, qty, size)
     setAdded(true)
     setTimeout(() => setAdded(false), 1400)
   }
 
   function buyNow() {
+    if (outOfStock) return
     add(product!.id, qty, size)
     navigate('/cart')
   }
@@ -138,20 +144,46 @@ export function ProductDetail() {
               </div>
             )}
 
-            {/* Quantity + actions */}
-            <div className="flex items-center gap-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Qtd.
+            {/* Stock availability */}
+            {stock != null && (
+              <p
+                className={`flex items-center gap-2 text-sm font-semibold ${
+                  outOfStock ? 'text-muted' : lowStock ? 'text-primary' : 'text-emerald-600'
+                }`}
+              >
+                {outOfStock && <PackageX size={16} />}
+                {outOfStock
+                  ? 'Produto esgotado'
+                  : lowStock
+                    ? `Últimas ${stock} unidades em estoque`
+                    : `${stock} unidades em estoque`}
               </p>
-              <QuantityStepper value={qty} onChange={setQty} />
-            </div>
+            )}
+
+            {/* Quantity + actions */}
+            {!outOfStock && (
+              <div className="flex items-center gap-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Qtd.
+                </p>
+                <QuantityStepper value={qty} onChange={setQty} max={stock} />
+              </div>
+            )}
 
             <div className="flex flex-col gap-3">
-              <Button onClick={buyNow}>Comprar agora</Button>
-              <Button variant="secondary" onClick={addToCart}>
-                {added ? <Check size={18} /> : <ShoppingBag size={18} />}
-                {added ? 'Adicionado!' : 'Adicionar ao carrinho'}
-              </Button>
+              {outOfStock ? (
+                <Button disabled>
+                  <PackageX size={18} /> Esgotado
+                </Button>
+              ) : (
+                <>
+                  <Button onClick={buyNow}>Comprar agora</Button>
+                  <Button variant="secondary" onClick={addToCart}>
+                    {added ? <Check size={18} /> : <ShoppingBag size={18} />}
+                    {added ? 'Adicionado!' : 'Adicionar ao carrinho'}
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Description */}

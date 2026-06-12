@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { GraduationCap, Plus, Clock, CalendarDays, Pencil, X } from 'lucide-react'
+import { GraduationCap, Plus, Clock, CalendarDays, Pencil, X, Check } from 'lucide-react'
 import { api, asList, getErrorMessage } from '@/lib/api'
+import { useAuthStore } from '@/store/authStore'
 import { Header } from '@/components/layout/Header'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
@@ -28,11 +29,17 @@ interface Aula {
  * GET /Gyms/Classes (the teacher's academia).
  */
 export function Classes() {
+  // Instructors (instrutor) can create classes but the backend's list endpoint
+  // (GET /Gyms/Classes) is professor-only, so for them we skip listing/editing
+  // and show just the creation form with a success confirmation.
+  const isInstructor = useAuthStore((s) => s.user?.role === 'instructor')
+
   const [aulas, setAulas] = useState<Aula[]>([])
   const [conteudo, setConteudo] = useState('')
   const [dataAula, setDataAula] = useState('')
   const [faixa, setFaixa] = useState('Branca')
   const [creating, setCreating] = useState(false)
+  const [created, setCreated] = useState(false)
   const [error, setError] = useState<string | null>(null)
   /** Id da aula em edição, ou null quando o formulário está criando uma nova. */
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -51,9 +58,10 @@ export function Classes() {
   }
 
   useEffect(() => {
+    if (isInstructor) return // sem listagem para instrutor (endpoint só-professor)
     void load(filterDate)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterDate])
+  }, [filterDate, isInstructor])
 
   function resetForm() {
     setConteudo('')
@@ -90,7 +98,12 @@ export function Classes() {
         await api.post('/Gyms/Classes/Creation', body)
       }
       resetForm()
-      await load()
+      if (isInstructor) {
+        setCreated(true)
+        setTimeout(() => setCreated(false), 2500)
+      } else {
+        await load()
+      }
     } catch (err) {
       setError(
         getErrorMessage(
@@ -179,77 +192,89 @@ export function Classes() {
           </Card>
         </form>
 
-        <div className="flex items-center justify-between">
-          <SectionTitle>Aulas da academia</SectionTitle>
-          <Badge tone="soft">{aulas.length}</Badge>
-        </div>
-
-        {/* Date filter (server-side via ?data=AAAA-MM-DD) */}
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <Input
-              name="filterDate"
-              type="date"
-              label="Filtrar por data"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-            />
+        {/* Confirmação de criação para o instrutor (que não lista aulas). */}
+        {isInstructor && created && (
+          <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-300">
+            <Check size={16} className="shrink-0" />
+            Aula criada! Os alunos da faixa selecionada já podem vê-la.
           </div>
-          {filterDate && (
-            <button
-              type="button"
-              onClick={() => setFilterDate('')}
-              className="h-13 shrink-0 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-muted transition-colors hover:text-content"
-            >
-              Limpar
-            </button>
-          )}
-        </div>
+        )}
 
-        {aulas.length === 0 ? (
-          <EmptyState
-            icon={GraduationCap}
-            message="Nenhuma aula criada ainda. Crie a primeira acima."
-          />
-        ) : (
-          <div className="flex flex-col gap-3">
-            {aulas.map((a) => (
-              <Card
-                key={a.id_aula}
-                className={`flex items-center gap-3 p-4 ${
-                  editingId === a.id_aula ? 'ring-2 ring-primary/40' : ''
-                }`}
-              >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-                  <GraduationCap size={20} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h4 className="truncate font-display text-[15px] font-bold uppercase tracking-tight text-content">
-                    {a.conteudo ?? 'Aula'}
-                  </h4>
-                  <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
-                    <span className="flex items-center gap-1">
-                      <CalendarDays size={13} className="text-primary" />
-                      {formatWallDate(a.data_aula) || '—'}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock size={13} className="text-primary" />
-                      {formatWallTime(a.data_aula) || '—'}
-                    </span>
-                    {a.faixa && <Badge tone="neutral">{a.faixa}</Badge>}
-                  </p>
-                </div>
+        {!isInstructor && (
+          <>
+            <div className="flex items-center justify-between">
+              <SectionTitle>Aulas da academia</SectionTitle>
+              <Badge tone="soft">{aulas.length}</Badge>
+            </div>
+
+            {/* Date filter (server-side via ?data=AAAA-MM-DD) */}
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <Input
+                  name="filterDate"
+                  type="date"
+                  label="Filtrar por data"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                />
+              </div>
+              {filterDate && (
                 <button
                   type="button"
-                  onClick={() => startEdit(a)}
-                  aria-label="Editar aula"
-                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold uppercase tracking-wide text-muted transition-colors hover:text-primary active:bg-canvas"
+                  onClick={() => setFilterDate('')}
+                  className="h-13 shrink-0 rounded-xl border border-line bg-surface px-4 text-sm font-semibold text-muted transition-colors hover:text-content"
                 >
-                  <Pencil size={16} /> Editar
+                  Limpar
                 </button>
-              </Card>
-            ))}
-          </div>
+              )}
+            </div>
+
+            {aulas.length === 0 ? (
+              <EmptyState
+                icon={GraduationCap}
+                message="Nenhuma aula criada ainda. Crie a primeira acima."
+              />
+            ) : (
+              <div className="flex flex-col gap-3">
+                {aulas.map((a) => (
+                  <Card
+                    key={a.id_aula}
+                    className={`flex items-center gap-3 p-4 ${
+                      editingId === a.id_aula ? 'ring-2 ring-primary/40' : ''
+                    }`}
+                  >
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+                      <GraduationCap size={20} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate font-display text-[15px] font-bold uppercase tracking-tight text-content">
+                        {a.conteudo ?? 'Aula'}
+                      </h4>
+                      <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className="flex items-center gap-1">
+                          <CalendarDays size={13} className="text-primary" />
+                          {formatWallDate(a.data_aula) || '—'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock size={13} className="text-primary" />
+                          {formatWallTime(a.data_aula) || '—'}
+                        </span>
+                        {a.faixa && <Badge tone="neutral">{a.faixa}</Badge>}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(a)}
+                      aria-label="Editar aula"
+                      className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold uppercase tracking-wide text-muted transition-colors hover:text-primary active:bg-canvas"
+                    >
+                      <Pencil size={16} /> Editar
+                    </button>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         <InfoNote>

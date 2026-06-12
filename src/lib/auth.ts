@@ -27,9 +27,15 @@ export function teachingGym(user: User | null): GymLink | undefined {
   )
 }
 
-/** The gym the user trains at as a student, if any. */
+/**
+ * The gym the user trains at, if any. Instructors are promoted from students
+ * and keep their student enrollment on the backend, so they also count as
+ * "enrolled" (lets the home/check-in resolve their real gym instead of demo).
+ */
 export function enrolledGym(user: User | null): GymLink | undefined {
-  return user?.academias?.find((a) => a.vinculo === 'aluno')
+  return user?.academias?.find(
+    (a) => a.vinculo === 'aluno' || a.vinculo === 'instrutor',
+  )
 }
 
 /**
@@ -41,7 +47,6 @@ export function enrolledGym(user: User | null): GymLink | undefined {
  */
 export async function fetchProfile(): Promise<User> {
   const { data } = await api.get<MeResponse>('/Users/Me')
-  const role: Role = data.role === 'teacher' ? 'teacher' : 'student'
 
   // O backend pode devolver a mesma academia mais de uma vez (vínculos
   // duplicados), o que duplicava os cards de academia e o seletor da loja.
@@ -65,6 +70,19 @@ export async function fetchProfile(): Promise<User> {
     }
   }
   const academias: GymLink[] = [...byId.values()]
+
+  // O backend só marca role="teacher" para o dono da academia (professor). Um
+  // "instrutor" é um aluno promovido que também pode criar aulas (mas não gerir
+  // convites/alunos/loja). Expomos um papel 'instructor' próprio — em vez de
+  // cair em 'student' — para liberar o gerenciador de aulas só para ele.
+  const isProfessor = academias.some((a) => a.vinculo === 'professor')
+  const isInstrutor = academias.some((a) => a.vinculo === 'instrutor')
+  const role: Role =
+    data.role === 'teacher' || isProfessor
+      ? 'teacher'
+      : isInstrutor
+        ? 'instructor'
+        : 'student'
 
   const user: User = {
     id: data.id ?? '',

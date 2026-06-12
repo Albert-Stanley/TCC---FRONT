@@ -138,7 +138,7 @@ export function App() {
               <Route path="/profile" element={<Profile />} />
             </Route>
 
-            {/* Teacher flow — role-gated (with bottom navigation) */}
+            {/* Teacher-only flow — role-gated (with bottom navigation) */}
             <Route element={<ProtectedRoute allow={['teacher']} />}>
               <Route element={<NavLayout />}>
                 <Route path="/students" element={<Students />} />
@@ -146,7 +146,12 @@ export function App() {
                 <Route path="/requests" element={<Requests />} />
                 <Route path="/store/manage" element={<ManageProducts />} />
               </Route>
-              {/* Full-screen teacher flow (no bottom nav) */}
+            </Route>
+
+            {/* Class manager (full-screen, no bottom nav) — professors and
+                instructors: the backend lets both create classes. Listing is
+                professor-only and is handled gracefully inside the page. */}
+            <Route element={<ProtectedRoute allow={['teacher', 'instructor']} />}>
               <Route path="/classes" element={<Classes />} />
             </Route>
 

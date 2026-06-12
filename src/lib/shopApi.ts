@@ -43,6 +43,28 @@ function dtoToProduct(d: ProdutoDTO): Product {
 }
 
 /**
+ * The catalog endpoint only stores name, price, size, quantity and image, so
+ * cosmetic fields (emoji, category, description, badge, …) have no backend
+ * counterpart. On every reload `dtoToProduct` resets them to defaults — that's
+ * why an edited emoji snapped back to 🥋. Carry over the locally-known
+ * cosmetics for products we already have, matched by id.
+ */
+function withCosmetics(fresh: Product, prev: Product | undefined): Product {
+  if (!prev) return fresh
+  return {
+    ...fresh,
+    emoji: prev.emoji,
+    category: prev.category,
+    description: prev.description || fresh.description,
+    badge: prev.badge ?? fresh.badge,
+    freeShipping: prev.freeShipping ?? fresh.freeShipping,
+    oldPriceCents: prev.oldPriceCents ?? fresh.oldPriceCents,
+    rating: prev.rating || fresh.rating,
+    reviews: prev.reviews || fresh.reviews,
+  }
+}
+
+/**
  * Lists a gym's catalog (GET /Gyms/Catalog) and caches it. When `gymId` is
  * given it is sent as `?id_academia=` so the user can browse the store of a
  * specific gym they belong to; without it the backend falls back to the user's
@@ -52,6 +74,11 @@ export async function listProducts(gymId?: string): Promise<Product[]> {
   const { data } = await api.get('/Gyms/Catalog', {
     params: gymId ? { id_academia: gymId } : undefined,
   })
+  // Snapshot the cosmetics we already know (emoji, category, …) before replacing
+  // the catalog, so a reload doesn't reset them to defaults.
+  const prevById = new Map(
+    useProductsStore.getState().products.map((p) => [p.id, p]),
+  )
   // Deduplica por id: o catálogo pode vir com produtos repetidos e eles
   // apareciam duplicados na vitrine e no gerenciador.
   const seen = new Set<string>()
@@ -62,6 +89,7 @@ export async function listProducts(gymId?: string): Promise<Product[]> {
       seen.add(p.id)
       return true
     })
+    .map((p) => withCosmetics(p, prevById.get(p.id)))
   useProductsStore.getState().setProducts(products)
   return products
 }
@@ -81,11 +109,30 @@ export async function saveProduct(product: Product, gymId?: string): Promise<Pro
   }
   if (product.id) {
     await api.put('/Gyms/Catalog/Update', { id_produto: product.id, ...body })
+    // GET /Gyms/Catalog requires id_academia, so the reload must carry the gym.
+    await listProducts(gymId).catch(() => {})
+    // Reapply the edited product so its chosen cosmetics (emoji, category, …) —
+    // which the backend doesn't persist — survive the reload.
+    useProductsStore.getState().upsertProduct(product)
   } else {
+    // The backend assigns the id on create, so diff the catalog before/after to
+    // find the new product and attach the cosmetics chosen in the form.
+    const before = new Set(useProductsStore.getState().products.map((p) => p.id))
     await api.post('/Gyms/Catalog/Creation', body)
+    const list = await listProducts(gymId).catch(() => [] as Product[])
+    const created = list.find((p) => !before.has(p.id))
+    if (created) {
+      useProductsStore.getState().upsertProduct({
+        ...created,
+        emoji: product.emoji,
+        category: product.category,
+        description: product.description,
+        badge: product.badge,
+        freeShipping: product.freeShipping,
+        oldPriceCents: product.oldPriceCents,
+      })
+    }
   }
-  // GET /Gyms/Catalog requires id_academia, so the reload must carry the gym.
-  await listProducts(gymId).catch(() => {})
   return product
 }
 
