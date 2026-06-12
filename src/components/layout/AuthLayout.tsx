@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Brand } from '@/components/ui/Brand'
 import { Logo } from '@/components/ui/Logo'
+import { Wordmark } from '@/components/ui/Wordmark'
 
 const FEATURES = [
   { icon: MapPin, text: 'Check-in por GPS direto do tatame' },
@@ -76,16 +77,20 @@ export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProp
 
       {/* ── Form side ─────────────────────────────────────────────────── */}
       <div className="flex min-h-[100dvh] flex-1 flex-col">
-        {/* Mobile-only brand hero */}
-        <div className="pt-safe relative overflow-hidden bg-gradient-to-b from-ink to-ink-soft px-6 pb-14 pt-9 text-white lg:hidden">
-          <div className="flex justify-center">
-            <Brand size={30} wordmarkClassName="text-lg text-white" />
+        {/* Mobile brand header — centred lockup, legível em tema claro e escuro */}
+        <div className="relative flex flex-col items-center overflow-hidden px-6 pb-4 pt-safe lg:hidden">
+          <span className="pointer-events-none absolute -top-10 left-1/2 h-48 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
+          <div className="relative flex flex-col items-center pt-12">
+            <Logo size={60} rounded="rounded-2xl" className="shadow-card" />
+            <Wordmark className="mt-3.5 text-2xl" />
+            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
+              Krav Maga · Defesa Pessoal
+            </p>
           </div>
-          <span className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-primary/20 blur-3xl" />
         </div>
 
         {/* Form sheet */}
-        <div className="-mt-6 flex flex-1 flex-col rounded-t-3xl bg-surface px-6 pb-10 pt-9 lg:mt-0 lg:items-center lg:justify-center lg:rounded-none lg:px-12 lg:py-12">
+        <div className="flex flex-1 flex-col px-6 pb-10 pt-4 lg:items-center lg:justify-center lg:px-12 lg:py-12">
           <div className="mx-auto flex w-full max-w-sm flex-1 flex-col lg:mx-0 lg:flex-none">
             <header>
               <Logo
