@@ -14,6 +14,7 @@ import {
   Clock,
   LocateFixed,
   Pencil,
+  Wallet,
 } from 'lucide-react'
 import { api, asList, getErrorMessage } from '@/lib/api'
 import { loadRoster } from '@/lib/roster'
@@ -256,6 +257,7 @@ export function Students() {
   const [busyId, setBusyId] = useState<string | number | null>(null)
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | number | null>(null)
+  const [pixBusy, setPixBusy] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -346,6 +348,34 @@ export function Students() {
     )
   }
 
+  // Stripe/Pix onboarding so the gym can receive the students' payments
+  // (POST /Gyms/Pix/Onboarding → onboarding URL). Opens it in a new tab.
+  async function startPixOnboarding() {
+    setError(null)
+    setSuccess(null)
+    setPixBusy(true)
+    try {
+      const { data } = await api.post('/Gyms/Pix/Onboarding')
+      const d = data as
+        | string
+        | { url?: string; onboarding_url?: string; link?: string }
+        | null
+      const url =
+        typeof d === 'string' ? d : d?.url ?? d?.onboarding_url ?? d?.link ?? ''
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      } else {
+        setError('Não foi possível obter o link de configuração de recebimentos.')
+      }
+    } catch (err) {
+      setError(
+        getErrorMessage(err, 'Não foi possível iniciar a configuração de recebimentos.'),
+      )
+    } finally {
+      setPixBusy(false)
+    }
+  }
+
   // Authoritative location from GET /Gyms/Geolocation (registered via
   // PUT /Gyms/Location); falls back to the locally cached gym, then demo.
   // `savedPoint` reflects an update made in this session via the panel below.
@@ -434,6 +464,10 @@ export function Students() {
             gymName={gym?.name ?? 'Sua academia'}
             onSaved={handleLocationSaved}
           />
+
+          <Button variant="secondary" loading={pixBusy} onClick={startPixOnboarding}>
+            <Wallet size={17} /> Configurar recebimentos (Pix)
+          </Button>
         </div>
 
         {/* Students */}

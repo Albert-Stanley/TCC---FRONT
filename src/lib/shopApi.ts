@@ -71,7 +71,7 @@ export async function listProducts(gymId?: string): Promise<Product[]> {
  * `tamanho` and a `quantidade` (1–20), so the sizes array is joined and the
  * stock is clamped. Reloads the catalog so created products get their real id.
  */
-export async function saveProduct(product: Product): Promise<Product> {
+export async function saveProduct(product: Product, gymId?: string): Promise<Product> {
   const body = {
     nome: product.name,
     preco: product.priceCents / 100,
@@ -84,7 +84,8 @@ export async function saveProduct(product: Product): Promise<Product> {
   } else {
     await api.post('/Gyms/Catalog/Creation', body)
   }
-  await listProducts().catch(() => {})
+  // GET /Gyms/Catalog requires id_academia, so the reload must carry the gym.
+  await listProducts(gymId).catch(() => {})
   return product
 }
 

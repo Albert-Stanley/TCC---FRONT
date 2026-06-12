@@ -123,11 +123,11 @@ export function Requests() {
         ) : visible.length === 0 ? (
           <EmptyState icon={Inbox} message="Nenhuma solicitação nesta categoria." />
         ) : (
-          <div className="grid items-start gap-4 lg:grid-cols-2">
+          <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
             {visible.map((r) => {
             const status = r.status ?? 'pending'
             return (
-              <Card key={r.id_aluno} className="flex flex-col gap-4">
+              <Card key={r.id_aluno} className="flex min-w-0 flex-col gap-4">
                 <div className="flex items-center gap-3">
                   <Avatar name={r.name} />
                   <div className="min-w-0">
@@ -140,23 +140,23 @@ export function Requests() {
                   </div>
                 </div>
 
-                <div className="flex gap-6">
-                  <div className="flex items-start gap-2">
-                    <FileText size={16} className="mt-0.5 text-muted" />
-                    <div>
+                <div className="flex flex-wrap gap-x-6 gap-y-3">
+                  <div className="flex min-w-0 items-start gap-2">
+                    <FileText size={16} className="mt-0.5 shrink-0 text-muted" />
+                    <div className="min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-muted">
                         CPF
                       </p>
-                      <p className="text-sm text-content">{maskCpf(r.cpf ?? '') || '—'}</p>
+                      <p className="truncate text-sm text-content">{maskCpf(r.cpf ?? '') || '—'}</p>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <MapPin size={16} className="mt-0.5 text-muted" />
-                    <div>
+                  <div className="flex min-w-0 items-start gap-2">
+                    <MapPin size={16} className="mt-0.5 shrink-0 text-muted" />
+                    <div className="min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-muted">
                         CEP
                       </p>
-                      <p className="text-sm text-content">{maskCep(r.cep ?? '') || '—'}</p>
+                      <p className="truncate text-sm text-content">{maskCep(r.cep ?? '') || '—'}</p>
                     </div>
                   </div>
                 </div>

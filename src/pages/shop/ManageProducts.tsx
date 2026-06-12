@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/Input'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
 import { useProductsStore } from '@/store/productsStore'
+import { useAuthStore } from '@/store/authStore'
+import { teachingGym } from '@/lib/auth'
 import { getErrorMessage } from '@/lib/api'
 import { listProducts, saveProduct, deleteProduct } from '@/lib/shopApi'
 import {
@@ -80,6 +82,8 @@ const fieldClass =
 export function ManageProducts() {
   const navigate = useNavigate()
   const products = useProductsStore((s) => s.products)
+  // The catalog is per-gym: GET /Gyms/Catalog requires the teacher's gym id.
+  const gymId = useAuthStore((s) => teachingGym(s.user)?.id)
 
   const [editingId, setEditingId] = useState<string | 'new' | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
@@ -91,8 +95,8 @@ export function ManageProducts() {
   const [busyId, setBusyId] = useState<string | null>(null)
 
   useEffect(() => {
-    void listProducts()
-  }, [])
+    if (gymId) void listProducts(gymId)
+  }, [gymId])
 
   const sorted = useMemo(
     () => [...products].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
@@ -203,7 +207,7 @@ export function ManageProducts() {
 
     setSaving(true)
     try {
-      await saveProduct(product)
+      await saveProduct(product, gymId)
       close()
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível salvar. Tente novamente.'))

@@ -174,7 +174,7 @@ export function Invites() {
             message="Nenhum convite gerado ainda. Gere um link para compartilhar com seus alunos."
           />
         ) : (
-          <div className="grid items-start gap-4 lg:grid-cols-2">
+          <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
             {invites.map((invite) => {
             const url = invite.url ?? inviteUrl(invite.token)
             const used = invite.status === 'used'
@@ -199,7 +199,7 @@ export function Invites() {
                   onClick={() => copy(invite)}
                   disabled={used}
                   aria-label="Copiar link do convite"
-                  className="group flex items-center gap-3 rounded-xl border border-line bg-canvas px-3.5 py-3 text-left transition-colors hover:border-primary/40 active:scale-[0.99] disabled:opacity-60"
+                  className="group flex min-w-0 items-center gap-3 rounded-xl border border-line bg-canvas px-3.5 py-3 text-left transition-colors hover:border-primary/40 active:scale-[0.99] disabled:opacity-60"
                 >
                   <span className="min-w-0 flex-1 truncate font-mono text-sm text-content">
                     {url}
