@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Plus, Copy, Trash2, Link2, Check, X } from 'lucide-react'
+import { Plus, Copy, Trash2, Link2, Check, X, QrCode } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { api, asList, getErrorMessage } from '@/lib/api'
 import { useAuthStore } from '@/store/authStore'
 import { useInviteStore } from '@/store/inviteStore'
@@ -28,6 +29,15 @@ export function Invites() {
   const [error, setError] = useState<string | null>(null)
   const [justGenerated, setJustGenerated] = useState(false)
   const [copiedId, setCopiedId] = useState<string | number | null>(null)
+  const [qrInvite, setQrInvite] = useState<Invite | null>(null)
+
+  // Fecha o modal do QR Code com Escape.
+  useEffect(() => {
+    if (!qrInvite) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setQrInvite(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [qrInvite])
 
   const stats = useMemo(() => {
     const used = invites.filter((i) => i.status === 'used').length
@@ -217,7 +227,15 @@ export function Invites() {
                   </span>
                 </button>
 
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setQrInvite(invite)}
+                    disabled={used}
+                    aria-label="Mostrar QR Code do convite"
+                    className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold uppercase tracking-wide text-content transition-colors hover:text-primary active:bg-canvas disabled:opacity-50"
+                  >
+                    <QrCode size={16} /> QR Code
+                  </button>
                   <button
                     onClick={() => remove(invite.id)}
                     aria-label="Remover convite"
@@ -232,6 +250,59 @@ export function Invites() {
           </div>
         )}
       </div>
+
+      {qrInvite && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/80 p-6 backdrop-blur-sm"
+          onClick={() => setQrInvite(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="QR Code do convite"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex w-full max-w-xs flex-col items-center gap-4 rounded-3xl border border-line bg-surface p-6 text-center shadow-card"
+          >
+            <div>
+              <p className="font-display text-lg font-extrabold uppercase tracking-tight text-content">
+                Convite da academia
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                Peça ao aluno para escanear com a câmera do celular.
+              </p>
+            </div>
+            <div className="rounded-2xl bg-white p-4 shadow-soft">
+              <QRCodeSVG
+                value={qrInvite.url ?? inviteUrl(qrInvite.token)}
+                size={208}
+                level="M"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => copy(qrInvite)}
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-primary transition-colors hover:text-primary-dark"
+            >
+              {copiedId === qrInvite.id ? (
+                <>
+                  <Check size={15} /> Copiado
+                </>
+              ) : (
+                <>
+                  <Copy size={15} /> Copiar link
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setQrInvite(null)}
+              className="h-11 w-full rounded-xl bg-primary text-sm font-semibold uppercase tracking-wide text-white shadow-primary transition-all hover:bg-primary-dark active:scale-[0.98]"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
