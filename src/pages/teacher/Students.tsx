@@ -29,7 +29,7 @@ import { SkeletonList } from '@/components/ui/Skeleton'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { FormError } from '@/components/ui/FormError'
-import { maskCpf, maskCnpj, formatDate } from '@/lib/format'
+import { maskCpf, maskCnpj, maskCep, onlyDigits, formatDate } from '@/lib/format'
 import { DEMO_GYM } from '@/lib/demo'
 import {
   openDirections,
@@ -37,6 +37,7 @@ import {
   getCurrentPosition,
   geocodeAddress,
   reverseGeocode,
+  lookupCep,
   type LatLng,
 } from '@/lib/geo'
 import type { Student } from '@/types'
@@ -524,11 +525,29 @@ function UpdateLocationPanel({
   onSaved: (point: LatLng) => void
 }) {
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
+  // Structured address: a CEP lookup fills these in, and the house number plus
+  // a structured geocode pin the gym far more precisely than a free-form query.
+  const [cep, setCep] = useState('')
+  const [street, setStreet] = useState('')
+  const [number, setNumber] = useState('')
+  const [district, setDistrict] = useState('')
+  const [city, setCity] = useState('')
+  const [uf, setUf] = useState('')
   const [point, setPoint] = useState<LatLng | null>(null)
-  const [busy, setBusy] = useState<'gps' | 'search' | 'save' | null>(null)
+  const [busy, setBusy] = useState<'gps' | 'cep' | 'search' | 'save' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+
+  function resetFields() {
+    setCep('')
+    setStreet('')
+    setNumber('')
+    setDistrict('')
+    setCity('')
+    setUf('')
+    setPoint(null)
+    setError(null)
+  }
 
   async function useGps() {
     setError(null)
@@ -544,14 +563,43 @@ function UpdateLocationPanel({
     }
   }
 
-  async function search() {
-    if (!query.trim()) return
+  /** Geocode the current structured address; auto-pins after CEP/number entry. */
+  async function locate(overrides?: Partial<Record<'street' | 'district' | 'city' | 'uf' | 'cep', string>>) {
+    const s = overrides?.street ?? street
+    const c = overrides?.city ?? city
+    if (!s && !c) return
     setError(null)
     setBusy('search')
-    const hit = await geocodeAddress(query)
+    const hit = await geocodeAddress({
+      street: s,
+      number,
+      district: overrides?.district ?? district,
+      city: c,
+      uf: overrides?.uf ?? uf,
+      cep: onlyDigits(overrides?.cep ?? cep),
+    })
     setBusy(null)
     if (hit) setPoint(hit)
-    else setError('Endereço não encontrado. Tente incluir número, cidade e UF.')
+    else setError('Endereço não encontrado. Confira o número, a cidade e a UF.')
+  }
+
+  /** ViaCEP lookup → autofill street/district/city/uf, then pin on the map. */
+  async function handleCepChange(value: string) {
+    setCep(maskCep(value))
+    const digits = onlyDigits(value)
+    if (digits.length !== 8) return
+    setBusy('cep')
+    const info = await lookupCep(digits)
+    setBusy(null)
+    if (!info) {
+      setError('CEP não encontrado. Preencha o endereço manualmente.')
+      return
+    }
+    setStreet(info.street ?? '')
+    setDistrict(info.district ?? '')
+    setCity(info.city ?? '')
+    setUf(info.uf ?? '')
+    void locate({ ...info, cep: digits })
   }
 
   async function save() {
@@ -566,8 +614,7 @@ function UpdateLocationPanel({
       onSaved(point)
       setSaved(true)
       setOpen(false)
-      setPoint(null)
-      setQuery('')
+      resetFields()
     } catch (err) {
       setError(getErrorMessage(err, 'Não foi possível salvar a localização.'))
     } finally {
@@ -612,26 +659,77 @@ function UpdateLocationPanel({
         <LocateFixed size={17} /> Usar minha posição atual
       </Button>
 
+      <div className="flex items-center gap-3">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+          ou pelo endereço
+        </span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
+
       <Input
-        name="address"
-        label="Ou busque pelo endereço"
-        placeholder="Rua, número, cidade — ou CEP"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault()
-            void search()
-          }
-        }}
+        name="cep"
+        label={busy === 'cep' ? 'CEP (buscando…)' : 'CEP'}
+        placeholder="00000-000"
+        inputMode="numeric"
+        value={cep}
+        onChange={(e) => handleCepChange(e.target.value)}
       />
+
+      <div className="grid grid-cols-[1fr_auto] gap-3">
+        <Input
+          name="street"
+          label="Logradouro"
+          placeholder="Av. / Rua"
+          value={street}
+          onChange={(e) => setStreet(e.target.value)}
+        />
+        <Input
+          name="number"
+          label="Número"
+          placeholder="Nº"
+          inputMode="numeric"
+          className="w-24"
+          value={number}
+          onChange={(e) => setNumber(e.target.value)}
+          onBlur={() => locate()}
+        />
+      </div>
+
+      <div className="grid grid-cols-[1fr_auto] gap-3">
+        <Input
+          name="district"
+          label="Bairro"
+          placeholder="Bairro"
+          value={district}
+          onChange={(e) => setDistrict(e.target.value)}
+        />
+        <Input
+          name="uf"
+          label="UF"
+          placeholder="UF"
+          maxLength={2}
+          className="w-20 uppercase"
+          value={uf}
+          onChange={(e) => setUf(e.target.value.toUpperCase().slice(0, 2))}
+        />
+      </div>
+
+      <Input
+        name="city"
+        label="Cidade"
+        placeholder="Cidade"
+        value={city}
+        onChange={(e) => setCity(e.target.value)}
+      />
+
       <Button
         type="button"
         variant="secondary"
         loading={busy === 'search'}
-        onClick={search}
+        onClick={() => locate()}
       >
-        <Search size={16} /> Buscar no mapa
+        <Search size={16} /> Localizar no mapa
       </Button>
 
       {point && (
@@ -655,9 +753,7 @@ function UpdateLocationPanel({
           variant="secondary"
           onClick={() => {
             setOpen(false)
-            setPoint(null)
-            setQuery('')
-            setError(null)
+            resetFields()
           }}
         >
           Cancelar
